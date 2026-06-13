@@ -3,6 +3,7 @@ import { createEmptyBoardState } from "../../engine/gameEngine";
 import { createInitialCheckersGameState } from "./checkersSetup";
 import {
   applyMove,
+  getCapturingMovesForSquare,
   getLegalMoves,
   getWinner,
   isLegalMove,
@@ -82,6 +83,22 @@ describe("checkers simple movement", () => {
     expect(getLegalMoves(board, "black")).toEqual([
       { from: 17, to: 35, captures: [26] },
     ]);
+  });
+
+  it("allows regular pieces to capture backward", () => {
+    const board = createBoardWithPieces([
+      [21, { id: "white-21", player: "white", type: "man" }],
+      [28, { id: "black-28", player: "black", type: "man" }],
+      [1, { id: "black-1", player: "black", type: "man" }],
+    ]);
+
+    expect(getCapturingMovesForSquare(board, 21, "white")).toEqual([
+      { from: 21, to: 35, captures: [28] },
+    ]);
+    expect(getLegalMoves(board, "white")).toEqual([
+      { from: 21, to: 35, captures: [28] },
+    ]);
+    expect(isLegalMove(board, "white", { from: 21, to: 35 })).toBe(true);
   });
 
   it("removes captured pieces when applying a capture", () => {

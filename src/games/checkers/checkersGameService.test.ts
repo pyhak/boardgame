@@ -278,6 +278,117 @@ describe("checkersGameService", () => {
     expect(nextState.statusMessage).toBe("White to move");
   });
 
+  it("continues a white man capture chain without giving black a turn", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [46, { id: "white-46", player: "white", type: "man" }],
+        [37, { id: "black-37", player: "black", type: "man" }],
+        [19, { id: "black-19", player: "black", type: "man" }],
+        [1, { id: "black-1", player: "black", type: "man" }],
+      ]),
+      "white",
+    );
+
+    const firstCapture = checkersGameService.applyMove(gameState, {
+      from: 46,
+      to: 28,
+    });
+
+    expect(firstCapture.currentPlayer).toBe("white");
+    expect(firstCapture.forcedPieceSquareIndex).toBe(28);
+    expect(firstCapture.legalTargetIndexes).toEqual([10]);
+    expect(firstCapture.statusMessage).toBe("White must continue capturing");
+
+    const secondCapture = checkersGameService.applyMove(firstCapture, {
+      from: 28,
+      to: 10,
+    });
+
+    expect(secondCapture.currentPlayer).toBe("black");
+    expect(secondCapture.forcedPieceSquareIndex).toBeNull();
+    expect(secondCapture.winner).toBeNull();
+    expect(secondCapture.board.squares[37].piece).toBeNull();
+    expect(secondCapture.board.squares[19].piece).toBeNull();
+    expect(secondCapture.board.squares[10].piece?.player).toBe("white");
+  });
+
+  it("keeps white forced after the visible h4 to f6 capture when a backward follow-up exists", () => {
+    let gameState = checkersGameService.createInitialState();
+
+    gameState = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("h6"),
+      to: notationToIndex("g5"),
+    });
+    gameState = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("g3"),
+      to: notationToIndex("h4"),
+    });
+    gameState = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("b6"),
+      to: notationToIndex("c5"),
+    });
+    gameState = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("h2"),
+      to: notationToIndex("g3"),
+    });
+    gameState = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("f6"),
+      to: notationToIndex("e5"),
+    });
+
+    const firstCapture = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("h4"),
+      to: notationToIndex("f6"),
+    });
+    const followUpMoves = checkersGameService
+      .getLegalMoves(firstCapture)
+      .filter((move) => move.from === notationToIndex("f6"));
+
+    expect(
+      followUpMoves.map((move) => ({
+        from: indexToNotation(move.from),
+        to: indexToNotation(move.to),
+        captures: move.captures?.map(indexToNotation) ?? [],
+      })),
+    ).toEqual([
+      {
+        from: "f6",
+        to: "d4",
+        captures: ["e5"],
+      },
+    ]);
+    expect(firstCapture.currentPlayer).toBe("white");
+    expect(firstCapture.forcedPieceSquareIndex).toBe(notationToIndex("f6"));
+    expect(firstCapture.legalTargetIndexes).toEqual([notationToIndex("d4")]);
+    expect(firstCapture.statusMessage).toBe("White must continue capturing");
+
+    const secondCapture = checkersGameService.applyMove(firstCapture, {
+      from: notationToIndex("f6"),
+      to: notationToIndex("d4"),
+    });
+
+    expect(secondCapture.currentPlayer).toBe("white");
+    expect(secondCapture.forcedPieceSquareIndex).toBe(notationToIndex("d4"));
+    expect(secondCapture.legalTargetIndexes).toEqual([notationToIndex("b6")]);
+    expect(secondCapture.statusMessage).toBe("White must continue capturing");
+    expect(secondCapture.board.squares[notationToIndex("e5")].piece).toBeNull();
+    expect(
+      secondCapture.board.squares[notationToIndex("d4")].piece?.player,
+    ).toBe("white");
+
+    const thirdCapture = checkersGameService.applyMove(secondCapture, {
+      from: notationToIndex("d4"),
+      to: notationToIndex("b6"),
+    });
+
+    expect(thirdCapture.currentPlayer).toBe("black");
+    expect(thirdCapture.forcedPieceSquareIndex).toBeNull();
+    expect(thirdCapture.board.squares[notationToIndex("c5")].piece).toBeNull();
+    expect(
+      thirdCapture.board.squares[notationToIndex("b6")].piece?.player,
+    ).toBe("white");
+  });
+
   it("captures two pieces in one turn with a man", () => {
     const gameState = createGameState(
       createBoardWithPieces([
@@ -387,15 +498,19 @@ describe("checkersGameService", () => {
   });
 });
 
-function createGameState(board: CheckersBoardState): CheckersGameState {
+function createGameState(
+  board: CheckersBoardState,
+  currentPlayer: CheckersGameState["currentPlayer"] = "black",
+): CheckersGameState {
   return {
     board,
-    currentPlayer: "black",
+    currentPlayer,
     selectedSquareIndex: null,
     legalTargetIndexes: [],
     forcedPieceSquareIndex: null,
     winner: null,
-    statusMessage: "Black to move",
+    statusMessage:
+      currentPlayer === "black" ? "Black to move" : "White to move",
   };
 }
 
@@ -412,4 +527,18 @@ function createBoardWithPieces(
       piece: piecesByIndex.get(square.index) ?? null,
     })),
   };
+}
+
+function notationToIndex(notation: string): number {
+  const file = notation.charCodeAt(0) - 97;
+  const rank = Number.parseInt(notation.slice(1), 10);
+
+  return (8 - rank) * 8 + file;
+}
+
+function indexToNotation(index: number): string {
+  const row = Math.floor(index / 8);
+  const column = index % 8;
+
+  return `${String.fromCharCode(97 + column)}${8 - row}`;
 }

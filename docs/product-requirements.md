@@ -15,7 +15,7 @@ This means:
 - Two players.
 - Diagonal movement.
 - Mandatory captures.
-- Regular pieces move and capture forward.
+- Regular pieces move forward, but they may capture both forward and backward.
 - Kings/tammid move any number of empty diagonal squares.
 - Kings/tammid capture by jumping one opponent piece on a diagonal and landing
   on any empty square beyond it on the same diagonal.

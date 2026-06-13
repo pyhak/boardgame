@@ -71,7 +71,7 @@ export function getCapturingMovesForSquare(
     return getKingCapturingMovesForSquare(board, from, piece);
   }
 
-  return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
+  return getManCaptureDirections().flatMap(([rowDelta, columnDelta]) => {
     const middle = getSquareIndex(
       board,
       fromSquare.coordinate.row + rowDelta,
@@ -124,19 +124,21 @@ function getSimpleMovesForSquare(
     return getKingSimpleMovesForSquare(board, from);
   }
 
-  return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
-    const to = getSquareIndex(
-      board,
-      fromSquare.coordinate.row + rowDelta,
-      fromSquare.coordinate.column + columnDelta,
-    );
+  return getManMoveDirections(piece.player).flatMap(
+    ([rowDelta, columnDelta]) => {
+      const to = getSquareIndex(
+        board,
+        fromSquare.coordinate.row + rowDelta,
+        fromSquare.coordinate.column + columnDelta,
+      );
 
-    if (to === null || board.squares[to].piece !== null) {
-      return [];
-    }
+      if (to === null || board.squares[to].piece !== null) {
+        return [];
+      }
 
-    return [{ from, to }];
-  });
+      return [{ from, to }];
+    },
+  );
 }
 
 export function isLegalMove(
@@ -217,6 +219,24 @@ export function getOpponent(player: Player): Player {
   return player === "black" ? "white" : "black";
 }
 
+function getManMoveDirections(player: Player): Array<[number, number]> {
+  const rowDelta = player === "black" ? 1 : -1;
+
+  return [
+    [rowDelta, -1],
+    [rowDelta, 1],
+  ];
+}
+
+function getManCaptureDirections(): Array<[number, number]> {
+  return [
+    [-1, -1],
+    [-1, 1],
+    [1, -1],
+    [1, 1],
+  ];
+}
+
 function getMoveDirections(piece: CheckersPiece): Array<[number, number]> {
   if (piece.type === "king") {
     return [
@@ -227,12 +247,7 @@ function getMoveDirections(piece: CheckersPiece): Array<[number, number]> {
     ];
   }
 
-  const rowDelta = piece.player === "black" ? 1 : -1;
-
-  return [
-    [rowDelta, -1],
-    [rowDelta, 1],
-  ];
+  return getManMoveDirections(piece.player);
 }
 
 function getKingSimpleMovesForSquare(
