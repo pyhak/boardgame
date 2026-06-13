@@ -1,6 +1,8 @@
 # Checkers
 
-English draughts / 8x8 checkers will be implemented here in a later sprint.
+English draughts / 8x8 checkers rules live here.
 
-Do not add movement, capture, king, or win-condition rules during Sprint 0.
+Sprint 2 includes initial setup, current-player state, and basic
+non-capturing diagonal movement for regular pieces.
 
+Captures, kings, win conditions, AI, and chess remain out of scope.
