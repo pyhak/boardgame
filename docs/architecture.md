@@ -31,7 +31,7 @@ The engine should not depend on React.
 
 The game implementation layer contains concrete rulesets:
 
-- English draughts / 8x8 checkers first.
+- 8x8 kabe/checkers first.
 - Chess later.
 - Estonian or international 10x10 draughts later as separate rulesets.
 
@@ -133,4 +133,3 @@ The exact types can evolve during implementation. Keep the public concepts stabl
 - Board coordinates should be represented consistently and documented.
 - Rules should be deterministic and covered by Vitest tests.
 - AI opponents should receive legal moves instead of duplicating rules.
-

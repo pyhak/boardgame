@@ -389,6 +389,39 @@ describe("checkersGameService", () => {
     ).toBe("white");
   });
 
+  it("promotes a man during a capture and continues the chain as a king", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [40, { id: "black-40", player: "black", type: "man" }],
+        [49, { id: "white-49", player: "white", type: "man" }],
+        [51, { id: "white-51", player: "white", type: "man" }],
+      ]),
+    );
+
+    const firstCapture = checkersGameService.applyMove(gameState, {
+      from: 40,
+      to: 58,
+    });
+
+    expect(firstCapture.currentPlayer).toBe("black");
+    expect(firstCapture.forcedPieceSquareIndex).toBe(58);
+    expect(firstCapture.legalTargetIndexes).toEqual(
+      expect.arrayContaining([44]),
+    );
+    expect(firstCapture.board.squares[58].piece?.type).toBe("king");
+
+    const secondCapture = checkersGameService.applyMove(firstCapture, {
+      from: 58,
+      to: 44,
+    });
+
+    expect(secondCapture.currentPlayer).toBe("black");
+    expect(secondCapture.winner).toBe("black");
+    expect(secondCapture.board.squares[49].piece).toBeNull();
+    expect(secondCapture.board.squares[51].piece).toBeNull();
+    expect(secondCapture.board.squares[44].piece?.type).toBe("king");
+  });
+
   it("captures two pieces in one turn with a man", () => {
     const gameState = createGameState(
       createBoardWithPieces([

@@ -15,7 +15,7 @@
 
 ## Sprint 2: Basic Checkers Movement
 
-- Implement English draughts / 8x8 checkers board setup.
+- Implement 8x8 checkers board setup.
 - Add simple diagonal non-capturing moves.
 - Add turn handling.
 - Add tests for initial setup and basic movement.
@@ -50,4 +50,3 @@
 - Explore chess-specific rules and board representation.
 - Validate whether shared interfaces are sufficient.
 - Add a small proof of concept without disrupting checkers.
-

@@ -74,7 +74,7 @@ describe("checkers simple movement", () => {
     expect(isLegalMove(board, "white", { from: 28, to: 35 })).toBe(false);
   });
 
-  it("finds legal forward captures", () => {
+  it("finds legal captures for men", () => {
     const board = createBoardWithPieces([
       [17, { id: "black-17", player: "black", type: "man" }],
       [26, { id: "white-26", player: "white", type: "man" }],
@@ -124,6 +124,18 @@ describe("checkers simple movement", () => {
       { from: 17, to: 35, captures: [26] },
     ]);
     expect(isLegalMove(board, "black", { from: 21, to: 28 })).toBe(false);
+  });
+
+  it("makes non-capturing moves illegal when only a backward capture is available", () => {
+    const board = createBoardWithPieces([
+      [21, { id: "white-21", player: "white", type: "man" }],
+      [28, { id: "black-28", player: "black", type: "man" }],
+    ]);
+
+    expect(getLegalMoves(board, "white")).toEqual([
+      { from: 21, to: 35, captures: [28] },
+    ]);
+    expect(isLegalMove(board, "white", { from: 21, to: 12 })).toBe(false);
   });
 });
 
@@ -255,6 +267,22 @@ describe("checkers kings", () => {
       expect.arrayContaining([{ from: 14, to: 35, captures: [28] }]),
     );
     expect(isLegalMove(board, "black", { from: 23, to: 30 })).toBe(false);
+  });
+
+  it("promotes a man during a capture", () => {
+    const board = createBoardWithPieces([
+      [40, { id: "black-40", player: "black", type: "man" }],
+      [49, { id: "white-49", player: "white", type: "man" }],
+    ]);
+
+    const nextBoard = applyMove(board, "black", { from: 40, to: 58 });
+
+    expect(nextBoard.squares[58].piece).toEqual({
+      id: "black-40",
+      player: "black",
+      type: "king",
+    });
+    expect(nextBoard.squares[49].piece).toBeNull();
   });
 });
 

@@ -6,8 +6,8 @@
 
 ## Initial Scope
 
-The first implementation is now an 8x8 kabe/checkers variant. It started from
-English draughts, but kings/tammid use flying movement and capture rules.
+The first implementation is an 8x8 kabe/checkers variant with international-
+style capture rules for men and flying kings/tammid.
 
 This means:
 
@@ -15,10 +15,13 @@ This means:
 - Two players.
 - Diagonal movement.
 - Mandatory captures.
-- Regular pieces move forward, but they may capture both forward and backward.
+- Regular pieces move forward one diagonal square.
+- Regular pieces may capture both forward and backward.
 - Kings/tammid move any number of empty diagonal squares.
 - Kings/tammid capture by jumping one opponent piece on a diagonal and landing
   on any empty square beyond it on the same diagonal.
+- Promotion happens on the back row. If a capture ends on the promotion row and
+  another capture is available, the same piece continues as a king/tammid.
 - Browser-based interaction using React.
 
 Estonian or international 10x10 draughts may be added later as a separate ruleset. The first implementation should not mix 8x8 and 10x10 rules.
