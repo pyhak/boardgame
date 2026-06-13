@@ -1,6 +1,6 @@
 import type { GameRules, Move, Player } from "../../engine/gameEngine";
 import { createInitialCheckersBoard } from "./checkersSetup";
-import type { CheckersBoardState, CheckersGameState } from "./checkersTypes";
+import type { CheckersBoardState } from "./checkersTypes";
 
 export const checkersRules: GameRules<CheckersBoardState> = {
   getInitialBoard: createInitialCheckersBoard,
@@ -92,22 +92,6 @@ export function applyMove(
   };
 }
 
-export function applyCheckersMove(
-  gameState: CheckersGameState,
-  move: Move,
-): CheckersGameState {
-  const nextBoard = applyMove(gameState.board, gameState.currentPlayer, move);
-
-  if (nextBoard === gameState.board) {
-    return gameState;
-  }
-
-  return {
-    board: nextBoard,
-    currentPlayer: getOpponent(gameState.currentPlayer),
-  };
-}
-
 export function getOpponent(player: Player): Player {
   return player === "black" ? "white" : "black";
 }
@@ -127,4 +111,3 @@ function getSquareIndex(
 
   return row * board.width + column;
 }
-

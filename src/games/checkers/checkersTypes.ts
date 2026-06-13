@@ -11,7 +11,8 @@ export type CheckersBoardState = BoardState<CheckersPiece>;
 export interface CheckersGameState {
   board: CheckersBoardState;
   currentPlayer: Player;
+  selectedSquareIndex: number | null;
+  legalTargetIndexes: number[];
 }
 
 export type CheckersMove = Move;
-

@@ -44,6 +44,8 @@ export function createInitialCheckersGameState(): CheckersGameState {
   return {
     board: createInitialCheckersBoard(),
     currentPlayer: "black",
+    selectedSquareIndex: null,
+    legalTargetIndexes: [],
   };
 }
 
@@ -58,4 +60,3 @@ function getStartingPlayerForRow(row: number): Player | null {
 
   return null;
 }
-

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createInitialCheckersGameState } from "./checkersSetup";
-import { applyCheckersMove, getLegalMoves, isLegalMove } from "./checkersRules";
+import { getLegalMoves, isLegalMove } from "./checkersRules";
 
 describe("checkers initial setup", () => {
   it("places 12 pieces for each player", () => {
@@ -61,14 +61,5 @@ describe("checkers simple movement", () => {
 
     expect(isLegalMove(board, "black", { from: 17, to: 10 })).toBe(false);
     expect(isLegalMove(board, "white", { from: 40, to: 49 })).toBe(false);
-  });
-
-  it("switches players after a legal move", () => {
-    const gameState = createInitialCheckersGameState();
-    const nextState = applyCheckersMove(gameState, { from: 17, to: 24 });
-
-    expect(nextState.currentPlayer).toBe("white");
-    expect(nextState.board.squares[17].piece).toBeNull();
-    expect(nextState.board.squares[24].piece?.player).toBe("black");
   });
 });
