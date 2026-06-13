@@ -83,6 +83,15 @@ export function App() {
           position: gameState,
           player: gameState.currentPlayer,
           legalMoves,
+          history: moveHistory.map((move) => ({
+            player: move.player,
+            move: {
+              from: move.from,
+              to: move.to,
+              captures: move.captures,
+              promotion: move.promotion,
+            },
+          })),
         })
         .then((move) => {
           if (isCancelled || !move) {
@@ -140,6 +149,7 @@ export function App() {
     isAiTurn,
     localAiDifficulty,
     localAiOpponent,
+    moveHistory,
   ]);
 
   function handleSquareClick(squareIndex: number) {

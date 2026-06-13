@@ -446,6 +446,73 @@ describe("checkersGameService", () => {
     }
   });
 
+  it("replays the exact passive-loop history without violating invariants", () => {
+    const replay: Array<{ from: string; to: string }> = [
+      { from: "h6", to: "g5" },
+      { from: "g3", to: "h4" },
+      { from: "b6", to: "a5" },
+      { from: "a3", to: "b4" },
+      { from: "d6", to: "e5" },
+      { from: "e3", to: "d4" },
+      { from: "g5", to: "f4" },
+      { from: "f2", to: "g3" },
+      { from: "c7", to: "d6" },
+      { from: "d4", to: "c5" },
+      { from: "g7", to: "h6" },
+      { from: "e1", to: "f2" },
+      { from: "h6", to: "g5" },
+      { from: "f2", to: "e3" },
+      { from: "f8", to: "g7" },
+      { from: "b2", to: "a3" },
+      { from: "g7", to: "h6" },
+      { from: "e3", to: "d4" },
+      { from: "b8", to: "c7" },
+      { from: "g1", to: "f2" },
+      { from: "c7", to: "b6" },
+      { from: "f2", to: "e3" },
+      { from: "h8", to: "g7" },
+    ];
+
+    let gameState = checkersGameService.createInitialState();
+
+    for (const step of replay) {
+      const legalMoves = checkersGameService.getLegalMoves(gameState);
+      const chosenFrom = notationToIndex(step.from);
+      const chosenTo = notationToIndex(step.to);
+      const legalMove = legalMoves.find(
+        (move) => move.from === chosenFrom && move.to === chosenTo,
+      );
+      const captureMoves = legalMoves.filter(
+        (move) => (move.captures?.length ?? 0) > 0,
+      );
+
+      expect(legalMove, `${step.from} -> ${step.to} should be legal`).toBeDefined();
+      if (captureMoves.length > 0) {
+        expect(
+          legalMove?.captures?.length ?? 0,
+          `${step.from} -> ${step.to} should capture when captures are available`,
+        ).toBeGreaterThan(0);
+      }
+
+      gameState = checkersGameService.applyMove(gameState, {
+        from: chosenFrom,
+        to: chosenTo,
+      });
+
+      expect(getCheckersGameStateInvariantIssues(gameState)).toEqual([]);
+    }
+
+    expect(gameState.currentPlayer).toBe("white");
+    expect(gameState.winner).toBeNull();
+    expect(gameState.forcedPieceSquareIndex).toBeNull();
+    expect(checkersGameService.getLegalMoves(gameState).length).toBeGreaterThan(0);
+    expect(
+      checkersGameService
+        .getLegalMoves(gameState)
+        .some((move) => gameState.board.squares[move.from].piece?.player === "white"),
+    ).toBe(true);
+  });
+
   it("promotes a man during a capture and continues the chain as a king", () => {
     const gameState = createGameState(
       createBoardWithPieces([
