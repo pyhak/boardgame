@@ -3,6 +3,7 @@ import { createInitialCheckersGameState } from "./checkersSetup";
 import {
   applyMove,
   getCapturingMovesForSquare,
+  getLegalMoves,
   getLegalMovesForSquare,
   getOpponent,
   getWinner,
@@ -15,12 +16,14 @@ export interface CheckersGameService {
     gameState: CheckersGameState,
     squareIndex: number,
   ): CheckersGameState;
+  getLegalMoves(gameState: CheckersGameState): Move[];
   applyMove(gameState: CheckersGameState, move: Move): CheckersGameState;
 }
 
 export const checkersGameService: CheckersGameService = {
   createInitialState: createInitialCheckersGameState,
   handleSquareClick,
+  getLegalMoves: getLegalCheckersMoves,
   applyMove: applyCheckersMove,
 };
 
@@ -107,6 +110,22 @@ function applyCheckersMove(
     winner: null,
     statusMessage: `${formatPlayer(nextPlayer)} to move`,
   };
+}
+
+function getLegalCheckersMoves(gameState: CheckersGameState): Move[] {
+  if (gameState.winner) {
+    return [];
+  }
+
+  if (gameState.forcedPieceSquareIndex !== null) {
+    return getLegalMovesForSquare(
+      gameState.board,
+      gameState.forcedPieceSquareIndex,
+      gameState.currentPlayer,
+    );
+  }
+
+  return getLegalMoves(gameState.board, gameState.currentPlayer);
 }
 
 function selectSquare(

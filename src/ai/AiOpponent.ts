@@ -1,12 +1,10 @@
-import type { BoardState, Move, Player } from "../engine/types";
+import type { Move } from "../engine/types";
 
-export interface AiOpponent<TBoard extends BoardState = BoardState> {
+export interface AiOpponent<TGameState, TMove extends Move = Move> {
   id: string;
   name: string;
   chooseMove(input: {
-    board: TBoard;
-    player: Player;
-    legalMoves: Move[];
-  }): Promise<Move>;
+    gameState: TGameState;
+    legalMoves: TMove[];
+  }): Promise<TMove | null>;
 }
-

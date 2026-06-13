@@ -54,3 +54,15 @@ select {
   color: #605b52;
 }
 
+.player-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.player-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #3b3730;
+}
