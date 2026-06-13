@@ -22,6 +22,17 @@ describe("checkersGameService", () => {
     ).toHaveLength(24);
   });
 
+  it("resets to a fresh initial game state", () => {
+    const movedState = checkersGameService.applyMove(
+      checkersGameService.createInitialState(),
+      { from: 17, to: 24 },
+    );
+    const resetState = checkersGameService.reset();
+
+    expect(movedState.board.squares[24].piece?.player).toBe("black");
+    expect(resetState).toEqual(checkersGameService.createInitialState());
+  });
+
   it("selects the current player's piece and exposes legal targets", () => {
     const gameState = checkersGameService.createInitialState();
     const nextState = checkersGameService.handleSquareClick(gameState, 17);
@@ -72,6 +83,21 @@ describe("checkersGameService", () => {
     expect(nextState.board.squares[26].piece?.player).toBe("black");
   });
 
+  it("returns move records for simple moves", () => {
+    const result = checkersGameService.applyMoveWithResult(
+      checkersGameService.createInitialState(),
+      { from: 17, to: 24 },
+    );
+
+    expect(result.moveRecord).toEqual({
+      player: "black",
+      from: 17,
+      to: 24,
+      captures: [],
+      promotion: false,
+    });
+  });
+
   it("does not expose simple targets when another piece must capture", () => {
     const gameState = createGameState(
       createBoardWithPieces([
@@ -106,6 +132,43 @@ describe("checkersGameService", () => {
     expect(nextState.forcedPieceSquareIndex).toBe(35);
     expect(nextState.legalTargetIndexes).toEqual([53]);
     expect(nextState.statusMessage).toBe("Black must continue capturing");
+  });
+
+  it("returns capture and promotion indicators in move records", () => {
+    const captureResult = checkersGameService.applyMoveWithResult(
+      createGameState(
+        createBoardWithPieces([
+          [17, { id: "black-17", player: "black", type: "man" }],
+          [26, { id: "white-26", player: "white", type: "man" }],
+          [56, { id: "white-56", player: "white", type: "man" }],
+        ]),
+      ),
+      { from: 17, to: 35 },
+    );
+    const promotionResult = checkersGameService.applyMoveWithResult(
+      createGameState(
+        createBoardWithPieces([
+          [49, { id: "black-49", player: "black", type: "man" }],
+          [40, { id: "white-40", player: "white", type: "man" }],
+        ]),
+      ),
+      { from: 49, to: 56 },
+    );
+
+    expect(captureResult.moveRecord).toEqual({
+      player: "black",
+      from: 17,
+      to: 35,
+      captures: [26],
+      promotion: false,
+    });
+    expect(promotionResult.moveRecord).toEqual({
+      player: "black",
+      from: 49,
+      to: 56,
+      captures: [],
+      promotion: true,
+    });
   });
 
   it("allows only the same piece to continue a multi-capture", () => {

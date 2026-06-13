@@ -19,3 +19,11 @@ export interface CheckersGameState {
 }
 
 export type CheckersMove = Move;
+
+export interface CheckersMoveRecord {
+  player: Player;
+  from: number;
+  to: number;
+  captures: number[];
+  promotion: boolean;
+}

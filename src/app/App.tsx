@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { RandomCheckersAiOpponent } from "../ai/RandomCheckersAiOpponent";
 import { checkersGameService } from "../games/checkers/checkersGameService";
+import type { CheckersMoveRecord } from "../games/checkers/checkersTypes";
 import { BoardView } from "../ui/board/BoardView";
 import { GameStatus } from "../ui/game/GameStatus";
+import { MoveHistory } from "../ui/game/MoveHistory";
 import {
   PlayerControls,
   type GameMode,
@@ -15,6 +17,7 @@ export function App() {
   const [gameState, setGameState] = useState(
     checkersGameService.createInitialState,
   );
+  const [moveHistory, setMoveHistory] = useState<CheckersMoveRecord[]>([]);
   const [gameMode, setGameMode] = useState<GameMode>("human-vs-human");
   const randomAiOpponent = useMemo(() => new RandomCheckersAiOpponent(), []);
   const isRandomAiTurn =
@@ -38,17 +41,12 @@ export function App() {
             return;
           }
 
-          setGameState((latestState) => {
-            if (
-              gameMode !== "human-vs-random-ai" ||
-              latestState.currentPlayer !== "black" ||
-              latestState.winner
-            ) {
-              return latestState;
-            }
-
-            return checkersGameService.applyMove(latestState, move);
-          });
+          const result = checkersGameService.applyMoveWithResult(
+            gameState,
+            move,
+          );
+          setGameState(result.gameState);
+          appendMoveRecord(result.moveRecord);
         });
     }, aiMoveDelayMs);
 
@@ -63,9 +61,25 @@ export function App() {
       return;
     }
 
-    setGameState((currentState) =>
-      checkersGameService.handleSquareClick(currentState, squareIndex),
+    const result = checkersGameService.handleSquareClickWithResult(
+      gameState,
+      squareIndex,
     );
+    setGameState(result.gameState);
+    appendMoveRecord(result.moveRecord);
+  }
+
+  function handleReset() {
+    setGameState(checkersGameService.reset());
+    setMoveHistory([]);
+  }
+
+  function appendMoveRecord(moveRecord: CheckersMoveRecord | null) {
+    if (!moveRecord) {
+      return;
+    }
+
+    setMoveHistory((currentHistory) => [...currentHistory, moveRecord]);
   }
 
   return (
@@ -74,14 +88,21 @@ export function App() {
         <header className="game-header">
           <h1 id="board-title">boardgame</h1>
           <GameStatus statusMessage={gameState.statusMessage} />
-          <PlayerControls mode={gameMode} onModeChange={setGameMode} />
+          <PlayerControls
+            mode={gameMode}
+            onModeChange={setGameMode}
+            onReset={handleReset}
+          />
         </header>
-        <BoardView
-          board={gameState.board}
-          legalTargetIndexes={gameState.legalTargetIndexes}
-          selectedSquareIndex={gameState.selectedSquareIndex}
-          onSquareClick={handleSquareClick}
-        />
+        <div className="game-layout">
+          <BoardView
+            board={gameState.board}
+            legalTargetIndexes={gameState.legalTargetIndexes}
+            selectedSquareIndex={gameState.selectedSquareIndex}
+            onSquareClick={handleSquareClick}
+          />
+          <MoveHistory moves={moveHistory} />
+        </div>
       </section>
     </main>
   );
