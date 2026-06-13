@@ -2,8 +2,6 @@
   width: min(100%, 640px);
   aspect-ratio: 1;
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
   border: 2px solid #2d2923;
 }
 
@@ -19,4 +17,3 @@
 .square-dark {
   background: #55716f;
 }
-

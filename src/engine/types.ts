@@ -6,10 +6,21 @@ export interface Piece {
   type: string;
 }
 
+export interface BoardCoordinate {
+  row: number;
+  column: number;
+}
+
+export interface BoardSquare<TPiece extends Piece = Piece> {
+  index: number;
+  coordinate: BoardCoordinate;
+  piece: TPiece | null;
+}
+
 export interface BoardState<TPiece extends Piece = Piece> {
   width: number;
   height: number;
-  squares: Array<TPiece | null>;
+  squares: Array<BoardSquare<TPiece>>;
 }
 
 export interface Move {
@@ -26,4 +37,3 @@ export interface GameRules<TBoard extends BoardState = BoardState> {
   applyMove(board: TBoard, player: Player, move: Move): TBoard;
   getWinner(board: TBoard): Player | null;
 }
-

@@ -1,18 +1,19 @@
-import type { BoardPlaceholderSquare } from "./boardPlaceholder";
+import type { BoardSquare } from "../../engine/gameEngine";
 
 interface SquareViewProps {
-  square: BoardPlaceholderSquare;
+  square: BoardSquare;
 }
 
 export function SquareView({ square }: SquareViewProps) {
-  const shadeClass = square.isDark ? "square square-dark" : "square square-light";
+  const { row, column } = square.coordinate;
+  const isDark = (row + column) % 2 === 1;
+  const shadeClass = isDark ? "square square-dark" : "square square-light";
 
   return (
     <div
       className={shadeClass}
       role="gridcell"
-      aria-label={`row ${square.row + 1}, column ${square.column + 1}`}
+      aria-label={`row ${row + 1}, column ${column + 1}`}
     />
   );
 }
-
