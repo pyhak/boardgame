@@ -1,4 +1,7 @@
-export type GameMode = "human-vs-human" | "human-vs-random-ai";
+export type GameMode =
+  | "human-vs-human"
+  | "human-vs-random-ai"
+  | "human-vs-openai-ai";
 
 interface PlayerControlsProps {
   mode: GameMode;
@@ -33,6 +36,15 @@ export function PlayerControls({
           />
           Human vs Random AI
         </label>
+        <label>
+          <input
+            checked={mode === "human-vs-openai-ai"}
+            name="game-mode"
+            onChange={() => onModeChange("human-vs-openai-ai")}
+            type="radio"
+          />
+          Human vs OpenAI AI
+        </label>
       </div>
       <button onClick={onReset} type="button">
         New Game
@@ -42,5 +54,13 @@ export function PlayerControls({
 }
 
 function formatMode(mode: GameMode): string {
-  return mode === "human-vs-human" ? "Human vs Human" : "Human vs Random AI";
+  if (mode === "human-vs-random-ai") {
+    return "Human vs Random AI";
+  }
+
+  if (mode === "human-vs-openai-ai") {
+    return "Human vs OpenAI AI";
+  }
+
+  return "Human vs Human";
 }

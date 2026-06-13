@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { OpenAiCheckersOpponent } from "../ai/OpenAiCheckersOpponent";
 import { RandomCheckersAiOpponent } from "../ai/RandomCheckersAiOpponent";
 import { checkersGameService } from "../games/checkers/checkersGameService";
 import type { CheckersMoveRecord } from "../games/checkers/checkersTypes";
@@ -20,13 +21,17 @@ export function App() {
   const [moveHistory, setMoveHistory] = useState<CheckersMoveRecord[]>([]);
   const [gameMode, setGameMode] = useState<GameMode>("human-vs-human");
   const randomAiOpponent = useMemo(() => new RandomCheckersAiOpponent(), []);
-  const isRandomAiTurn =
-    gameMode === "human-vs-random-ai" &&
+  const openAiOpponent = useMemo(() => new OpenAiCheckersOpponent(), []);
+  const aiOpponent =
+    gameMode === "human-vs-openai-ai" ? openAiOpponent : randomAiOpponent;
+  const isAiTurn =
+    (gameMode === "human-vs-random-ai" ||
+      gameMode === "human-vs-openai-ai") &&
     gameState.currentPlayer === "black" &&
     !gameState.winner;
 
   useEffect(() => {
-    if (!isRandomAiTurn) {
+    if (!isAiTurn) {
       return;
     }
 
@@ -34,7 +39,7 @@ export function App() {
     const timeoutId = window.setTimeout(() => {
       const legalMoves = checkersGameService.getLegalMoves(gameState);
 
-      void randomAiOpponent
+      void aiOpponent
         .chooseMove({
           position: gameState,
           player: gameState.currentPlayer,
@@ -51,6 +56,9 @@ export function App() {
           );
           setGameState(result.gameState);
           appendMoveRecord(result.moveRecord);
+        })
+        .catch(() => {
+          // The proxy can be offline or return a safe fallback; keep the board unchanged.
         });
     }, aiMoveDelayMs);
 
@@ -58,10 +66,10 @@ export function App() {
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [gameMode, gameState, isRandomAiTurn, randomAiOpponent]);
+  }, [aiOpponent, gameState, isAiTurn]);
 
   function handleSquareClick(squareIndex: number) {
-    if (isRandomAiTurn) {
+    if (isAiTurn) {
       return;
     }
 
