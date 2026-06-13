@@ -10,6 +10,8 @@ import {
 } from "../games/checkers/checkersCommentary";
 import type { CheckersMoveRecord } from "../games/checkers/checkersTypes";
 import { BoardView } from "../ui/board/BoardView";
+import { GameFinishOverlay } from "../ui/game/GameFinishOverlay";
+import { GameSetupDialog } from "../ui/game/GameSetupDialog";
 import { GameStatus } from "../ui/game/GameStatus";
 import { MoveHistory } from "../ui/game/MoveHistory";
 import {
@@ -17,6 +19,16 @@ import {
   type GameMode,
 } from "../ui/game/PlayerControls";
 import { shouldAutoPlayLocalAiTurn } from "./appLogic";
+import {
+  createGameResult,
+  createInitialGameSession,
+  finishGameSession,
+  formatElapsedTime,
+  getElapsedSeconds,
+  shouldRunGameTimer,
+  startGameSession,
+  type GameSession,
+} from "./gameSession";
 import "./styles.css";
 
 const aiMoveDelayMs = 400;
@@ -30,15 +42,26 @@ export function App() {
   const [gameMode, setGameMode] = useState<GameMode>("human-vs-local-ai");
   const [localAiDifficulty, setLocalAiDifficulty] =
     useState<LocalAiDifficulty>("oskaja");
+  const [session, setSession] = useState<GameSession>(
+    () => createInitialGameSession(),
+  );
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now());
+  const {
+    startedAtMs,
+    finishedAtMs,
+    playerName,
+    gameResult,
+    isSetupOpen,
+    isResultVisible,
+  } = session;
+
   const localAiOpponent = useMemo(
     () => new LocalCheckersAiOpponent(localAiDifficulty),
     [localAiDifficulty],
   );
+
   const appendMoveRecord = useCallback(
-    (
-      moveRecord: CheckersMoveRecord | null,
-      actor: CheckersMoveActor,
-    ) => {
+    (moveRecord: CheckersMoveRecord | null, actor: CheckersMoveActor) => {
       if (!moveRecord) {
         return;
       }
@@ -58,7 +81,57 @@ export function App() {
     },
     [gameMode],
   );
-  const isAiTurn = shouldAutoPlayLocalAiTurn(gameState, gameMode);
+
+  const isGameActive = startedAtMs !== null && finishedAtMs === null;
+  const isAiTurn =
+    isGameActive && shouldAutoPlayLocalAiTurn(gameState, gameMode);
+  const elapsedSeconds = getElapsedSeconds({ startedAtMs, finishedAtMs }, clockNowMs);
+  const elapsedLabel = formatElapsedTime(elapsedSeconds);
+
+  useEffect(() => {
+    if (!shouldRunGameTimer({ startedAtMs, finishedAtMs })) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setClockNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [finishedAtMs, startedAtMs]);
+
+  useEffect(() => {
+    if (!isGameActive || gameState.winner === null || gameResult) {
+      return;
+    }
+
+    const completedAt = Date.now();
+    const completedGameResult = createGameResult({
+      playerName,
+      winner: gameState.winner,
+      elapsedSeconds: getElapsedSeconds(
+        { startedAtMs, finishedAtMs },
+        completedAt,
+      ),
+      completedAt: new Date(completedAt).toISOString(),
+      moveCount: moveHistory.length,
+    });
+
+    setSession((currentSession) =>
+      finishGameSession(currentSession, completedGameResult, completedAt),
+    );
+    setClockNowMs(completedAt);
+  }, [
+    gameState.winner,
+    isGameActive,
+    playerName,
+    startedAtMs,
+    finishedAtMs,
+    moveHistory.length,
+    gameResult,
+  ]);
 
   useEffect(() => {
     if (!isAiTurn) {
@@ -153,7 +226,7 @@ export function App() {
   ]);
 
   function handleSquareClick(squareIndex: number) {
-    if (isAiTurn) {
+    if (!isGameActive || isAiTurn) {
       return;
     }
 
@@ -165,9 +238,35 @@ export function App() {
     appendMoveRecord(result.moveRecord, "human");
   }
 
-  function handleReset() {
+  function handleStartGame() {
+    const now = Date.now();
+
+    setSession((currentSession) => startGameSession(currentSession, now));
     setGameState(checkersGameService.reset());
     setMoveHistory([]);
+    setClockNowMs(now);
+  }
+
+  function handleNewGame() {
+    setSession((currentSession) => {
+      const nextSession: GameSession = {
+        ...createInitialGameSession(currentSession.playerName),
+        playerNameInput: currentSession.playerName,
+        playerName: currentSession.playerName,
+      };
+
+      return nextSession;
+    });
+    setGameState(checkersGameService.reset());
+    setMoveHistory([]);
+    setClockNowMs(Date.now());
+  }
+
+  function handleViewBoard() {
+    setSession((currentSession) => ({
+      ...currentSession,
+      isResultVisible: false,
+    }));
   }
 
   function handleModeChange(mode: GameMode) {
@@ -178,6 +277,13 @@ export function App() {
     setLocalAiDifficulty(difficulty);
   }
 
+  function handlePlayerNameChange(playerName: string) {
+    setSession((currentSession) => ({
+      ...currentSession,
+      playerNameInput: playerName,
+    }));
+  }
+
   return (
     <main className="app-shell">
       <section className="game-area" aria-labelledby="board-title">
@@ -185,6 +291,9 @@ export function App() {
           <h1 id="board-title">boardgame</h1>
           <GameStatus
             statusMessage={gameState.statusMessage}
+            mode={gameMode}
+            difficulty={localAiDifficulty}
+            timerLabel={isGameActive ? elapsedLabel : "00:00:00"}
             currentPlayer={gameState.currentPlayer}
             winner={gameState.winner}
             forcedPieceSquareIndex={gameState.forcedPieceSquareIndex}
@@ -196,16 +305,35 @@ export function App() {
             difficulty={localAiDifficulty}
             onModeChange={handleModeChange}
             onDifficultyChange={handleDifficultyChange}
-            onReset={handleReset}
+            onReset={handleNewGame}
           />
         </header>
         <div className="game-layout">
-          <BoardView
-            board={gameState.board}
-            legalTargetIndexes={gameState.legalTargetIndexes}
-            selectedSquareIndex={gameState.selectedSquareIndex}
-            onSquareClick={handleSquareClick}
-          />
+          <div className="board-stage">
+            <BoardView
+              board={gameState.board}
+              legalTargetIndexes={gameState.legalTargetIndexes}
+              selectedSquareIndex={gameState.selectedSquareIndex}
+              onSquareClick={handleSquareClick}
+            />
+            {isSetupOpen ? (
+              <GameSetupDialog
+                playerName={session.playerNameInput}
+                onPlayerNameChange={handlePlayerNameChange}
+                onStartGame={handleStartGame}
+              />
+            ) : null}
+            {isResultVisible && gameState.winner ? (
+              <GameFinishOverlay
+                elapsedLabel={elapsedLabel}
+                mode={gameMode}
+                onNewGame={handleNewGame}
+                onViewBoard={handleViewBoard}
+                playerName={playerName}
+                winner={gameState.winner}
+              />
+            ) : null}
+          </div>
           <MoveHistory moves={moveHistory} />
         </div>
       </section>

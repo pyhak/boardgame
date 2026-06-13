@@ -1,17 +1,20 @@
-export type GameMode =
-  | "human-vs-human"
-  | "human-vs-random-ai"
-  | "human-vs-openai-ai";
+import type { LocalAiDifficulty } from "../../ai/LocalCheckersAiOpponent";
+
+export type GameMode = "human-vs-human" | "human-vs-local-ai";
 
 interface PlayerControlsProps {
   mode: GameMode;
+  difficulty: LocalAiDifficulty;
   onModeChange: (mode: GameMode) => void;
+  onDifficultyChange: (difficulty: LocalAiDifficulty) => void;
   onReset: () => void;
 }
 
 export function PlayerControls({
   mode,
+  difficulty,
   onModeChange,
+  onDifficultyChange,
   onReset,
 }: PlayerControlsProps) {
   return (
@@ -29,37 +32,38 @@ export function PlayerControls({
         </label>
         <label>
           <input
-            checked={mode === "human-vs-random-ai"}
+            checked={mode === "human-vs-local-ai"}
             name="game-mode"
-            onChange={() => onModeChange("human-vs-random-ai")}
+            onChange={() => onModeChange("human-vs-local-ai")}
             type="radio"
           />
-          Human vs Random AI
-        </label>
-        <label>
-          <input
-            checked={mode === "human-vs-openai-ai"}
-            name="game-mode"
-            onChange={() => onModeChange("human-vs-openai-ai")}
-            type="radio"
-          />
-          Human vs OpenAI AI
+          Human vs Local AI
         </label>
       </div>
+      <label className="difficulty-picker">
+        AI difficulty
+        <select
+          disabled={mode !== "human-vs-local-ai"}
+          onChange={(event) =>
+            onDifficultyChange(event.target.value as LocalAiDifficulty)
+          }
+          value={difficulty}
+        >
+          <option value="algaja">Algaja</option>
+          <option value="oskaja">Oskaja</option>
+          <option value="meister">Meister</option>
+        </select>
+      </label>
       <button onClick={onReset} type="button">
-        New Game
+        Uus mäng
       </button>
     </div>
   );
 }
 
 function formatMode(mode: GameMode): string {
-  if (mode === "human-vs-random-ai") {
-    return "Human vs Random AI";
-  }
-
-  if (mode === "human-vs-openai-ai") {
-    return "Human vs OpenAI AI";
+  if (mode === "human-vs-local-ai") {
+    return "Human vs Local AI";
   }
 
   return "Human vs Human";
