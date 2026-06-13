@@ -1,10 +1,13 @@
-import type { Move } from "../engine/types";
+import type { Move, Player } from "../engine/types";
 
-export interface AiOpponent<TGameState, TMove extends Move = Move> {
+export interface AiMoveInput<TPosition, TMove extends Move = Move> {
+  position: TPosition;
+  player: Player;
+  legalMoves: TMove[];
+}
+
+export interface AiOpponent<TPosition, TMove extends Move = Move> {
   id: string;
   name: string;
-  chooseMove(input: {
-    gameState: TGameState;
-    legalMoves: TMove[];
-  }): Promise<TMove | null>;
+  chooseMove(input: AiMoveInput<TPosition, TMove>): Promise<TMove | null>;
 }

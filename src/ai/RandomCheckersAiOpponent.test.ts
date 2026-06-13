@@ -15,7 +15,8 @@ describe("RandomCheckersAiOpponent", () => {
     const legalMoves = checkersGameService.getLegalMoves(gameState);
 
     const move = await ai.chooseMove({
-      gameState,
+      position: gameState,
+      player: gameState.currentPlayer,
       legalMoves: [{ from: 0, to: 9 }],
     });
 
@@ -34,7 +35,8 @@ describe("RandomCheckersAiOpponent", () => {
     );
 
     const move = await ai.chooseMove({
-      gameState,
+      position: gameState,
+      player: gameState.currentPlayer,
       legalMoves: checkersGameService.getLegalMoves(gameState),
     });
 
@@ -53,7 +55,8 @@ describe("RandomCheckersAiOpponent", () => {
     );
 
     const firstMove = await ai.chooseMove({
-      gameState,
+      position: gameState,
+      player: gameState.currentPlayer,
       legalMoves: checkersGameService.getLegalMoves(gameState),
     });
     expect(firstMove).toEqual({ from: 17, to: 35, captures: [26] });
@@ -63,7 +66,8 @@ describe("RandomCheckersAiOpponent", () => {
     expect(forcedState.forcedPieceSquareIndex).toBe(35);
 
     const secondMove = await ai.chooseMove({
-      gameState: forcedState,
+      position: forcedState,
+      player: forcedState.currentPlayer,
       legalMoves: checkersGameService.getLegalMoves(forcedState),
     });
     expect(secondMove).toEqual({ from: 35, to: 53, captures: [44] });
@@ -89,7 +93,8 @@ describe("RandomCheckersAiOpponent", () => {
     );
 
     const move = await ai.chooseMove({
-      gameState,
+      position: gameState,
+      player: gameState.currentPlayer,
       legalMoves: [{ from: 17, to: 24 }],
     });
 

@@ -35,7 +35,11 @@ export function App() {
       const legalMoves = checkersGameService.getLegalMoves(gameState);
 
       void randomAiOpponent
-        .chooseMove({ gameState, legalMoves })
+        .chooseMove({
+          position: gameState,
+          player: gameState.currentPlayer,
+          legalMoves,
+        })
         .then((move) => {
           if (isCancelled || !move) {
             return;
