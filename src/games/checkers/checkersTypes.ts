@@ -1,6 +1,6 @@
 import type { BoardState, Move, Piece, Player } from "../../engine/gameEngine";
 
-export type CheckersPieceType = "man";
+export type CheckersPieceType = "man" | "king";
 
 export interface CheckersPiece extends Piece {
   type: CheckersPieceType;

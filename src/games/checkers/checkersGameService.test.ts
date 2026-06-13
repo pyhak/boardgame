@@ -155,6 +155,36 @@ describe("checkersGameService", () => {
     expect(nextState.legalTargetIndexes).toEqual([]);
     expect(nextState.statusMessage).toBe("White to move");
   });
+
+  it("continues multi-captures with kings", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [35, { id: "black-35", player: "black", type: "king" }],
+        [26, { id: "white-26", player: "white", type: "man" }],
+        [10, { id: "white-10", player: "white", type: "man" }],
+      ]),
+    );
+
+    const forcedState = checkersGameService.applyMove(gameState, {
+      from: 35,
+      to: 17,
+    });
+
+    expect(forcedState.currentPlayer).toBe("black");
+    expect(forcedState.selectedSquareIndex).toBe(17);
+    expect(forcedState.forcedPieceSquareIndex).toBe(17);
+    expect(forcedState.legalTargetIndexes).toEqual([3]);
+
+    const nextState = checkersGameService.applyMove(forcedState, {
+      from: 17,
+      to: 3,
+    });
+
+    expect(nextState.winner).toBe("black");
+    expect(nextState.board.squares[3].piece?.type).toBe("king");
+    expect(nextState.board.squares[10].piece).toBeNull();
+    expect(nextState.statusMessage).toBe("Black wins");
+  });
 });
 
 function createGameState(board: CheckersBoardState): CheckersGameState {

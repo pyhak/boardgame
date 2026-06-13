@@ -1,6 +1,6 @@
 import type { GameRules, Move, Player } from "../../engine/gameEngine";
 import { createInitialCheckersBoard } from "./checkersSetup";
-import type { CheckersBoardState } from "./checkersTypes";
+import type { CheckersBoardState, CheckersPiece } from "./checkersTypes";
 
 export const checkersRules: GameRules<CheckersBoardState> = {
   getInitialBoard: createInitialCheckersBoard,
@@ -65,24 +65,23 @@ export function getCapturingMovesForSquare(
     return [];
   }
 
-  const nextRow = fromSquare.coordinate.row + getForwardRowDelta(player);
-  const landingRow = fromSquare.coordinate.row + getForwardRowDelta(player) * 2;
-  const nextColumns = [
-    fromSquare.coordinate.column - 1,
-    fromSquare.coordinate.column + 1,
-  ];
-  const landingColumns = [
-    fromSquare.coordinate.column - 2,
-    fromSquare.coordinate.column + 2,
-  ];
+  const piece = fromSquare.piece;
 
-  return nextColumns.flatMap((middleColumn, index) => {
-    const middle = getSquareIndex(board, nextRow, middleColumn);
-    const to = getSquareIndex(board, landingRow, landingColumns[index]);
+  return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
+    const middle = getSquareIndex(
+      board,
+      fromSquare.coordinate.row + rowDelta,
+      fromSquare.coordinate.column + columnDelta,
+    );
+    const to = getSquareIndex(
+      board,
+      fromSquare.coordinate.row + rowDelta * 2,
+      fromSquare.coordinate.column + columnDelta * 2,
+    );
 
     if (middle === null || to === null || board.squares[to].piece !== null) {
-      return [];
-    }
+  return [];
+}
 
     const capturedPiece = board.squares[middle].piece;
 
@@ -115,14 +114,14 @@ function getSimpleMovesForSquare(
     return [];
   }
 
-  const nextRow = fromSquare.coordinate.row + getForwardRowDelta(player);
-  const nextColumns = [
-    fromSquare.coordinate.column - 1,
-    fromSquare.coordinate.column + 1,
-  ];
+  const piece = fromSquare.piece;
 
-  return nextColumns.flatMap((column) => {
-    const to = getSquareIndex(board, nextRow, column);
+  return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
+    const to = getSquareIndex(
+      board,
+      fromSquare.coordinate.row + rowDelta,
+      fromSquare.coordinate.column + columnDelta,
+    );
 
     if (to === null || board.squares[to].piece !== null) {
       return [];
@@ -137,10 +136,6 @@ export function isLegalMove(
   player: Player,
   move: Move,
 ): boolean {
-  if (move.promotion) {
-    return false;
-  }
-
   return getLegalMovesForSquare(board, move.from, player).some(
     (legalMove) =>
       legalMove.to === move.to && capturesMatchWhenProvided(legalMove, move),
@@ -166,6 +161,9 @@ export function applyMove(
   }
 
   const movingPiece = board.squares[move.from].piece;
+  const nextPiece = movingPiece
+    ? promotePieceIfNeeded(movingPiece, board.squares[move.to].coordinate.row)
+    : null;
   const capturedIndexes = legalMove.captures ?? [];
 
   return {
@@ -176,7 +174,7 @@ export function applyMove(
       }
 
       if (square.index === move.to) {
-        return { ...square, piece: movingPiece };
+        return { ...square, piece: nextPiece };
       }
 
       return square;
@@ -211,8 +209,22 @@ export function getOpponent(player: Player): Player {
   return player === "black" ? "white" : "black";
 }
 
-function getForwardRowDelta(player: Player): number {
-  return player === "black" ? 1 : -1;
+function getMoveDirections(piece: CheckersPiece): Array<[number, number]> {
+  if (piece.type === "king") {
+    return [
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ];
+  }
+
+  const rowDelta = piece.player === "black" ? 1 : -1;
+
+  return [
+    [rowDelta, -1],
+    [rowDelta, 1],
+  ];
 }
 
 function hasAnyCapture(board: CheckersBoardState, player: Player): boolean {
@@ -236,6 +248,27 @@ function capturesMatchWhenProvided(legalMove: Move, requestedMove: Move): boolea
     leftCaptures.length === rightCaptures.length &&
     leftCaptures.every((capture, index) => capture === rightCaptures[index])
   );
+}
+
+function promotePieceIfNeeded(
+  piece: CheckersPiece,
+  destinationRow: number,
+): CheckersPiece {
+  if (piece.type === "king") {
+    return piece;
+  }
+
+  if (
+    (piece.player === "black" && destinationRow === 7) ||
+    (piece.player === "white" && destinationRow === 0)
+  ) {
+    return {
+      ...piece,
+      type: "king",
+    };
+  }
+
+  return piece;
 }
 
 function getSquareIndex(
