@@ -118,11 +118,10 @@ function applyCheckersMoveWithResult(
     };
   }
 
-  const continuedCaptures = getCapturingMovesForSquare(
-    nextBoard,
-    move.to,
-    gameState.currentPlayer,
-  );
+  const continuedCaptures =
+    moveRecord.captures.length > 0
+      ? getCapturingMovesForSquare(nextBoard, move.to, gameState.currentPlayer)
+      : [];
 
   if (continuedCaptures.length > 0) {
     return {

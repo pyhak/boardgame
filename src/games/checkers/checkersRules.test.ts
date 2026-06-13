@@ -147,15 +147,71 @@ describe("checkers kings", () => {
     );
   });
 
+  it("allows kings to move multiple empty diagonal squares", () => {
+    const board = createBoardWithPieces([
+      [35, { id: "black-35", player: "black", type: "king" }],
+    ]);
+
+    expect(getLegalMoves(board, "black")).toEqual(
+      expect.arrayContaining([
+        { from: 35, to: 26 },
+        { from: 35, to: 17 },
+        { from: 35, to: 8 },
+      ]),
+    );
+  });
+
+  it("does not allow kings to move through occupied squares", () => {
+    const board = createBoardWithPieces([
+      [35, { id: "black-35", player: "black", type: "king" }],
+      [26, { id: "black-26", player: "black", type: "man" }],
+    ]);
+
+    expect(isLegalMove(board, "black", { from: 35, to: 17 })).toBe(false);
+  });
+
   it("allows kings to capture backward", () => {
     const board = createBoardWithPieces([
       [35, { id: "black-35", player: "black", type: "king" }],
       [26, { id: "white-26", player: "white", type: "man" }],
     ]);
 
-    expect(getLegalMoves(board, "black")).toEqual([
-      { from: 35, to: 17, captures: [26] },
+    expect(getLegalMoves(board, "black")).toEqual(
+      expect.arrayContaining([
+        { from: 35, to: 17, captures: [26] },
+        { from: 35, to: 8, captures: [26] },
+      ]),
+    );
+  });
+
+  it("allows flying kings to land beyond one captured opponent", () => {
+    const board = createBoardWithPieces([
+      [14, { id: "black-14", player: "black", type: "king" }],
+      [28, { id: "white-28", player: "white", type: "man" }],
     ]);
+
+    expect(getLegalMoves(board, "black")).toEqual(
+      expect.arrayContaining([
+        { from: 14, to: 35, captures: [28] },
+        { from: 14, to: 42, captures: [28] },
+        { from: 14, to: 49, captures: [28] },
+        { from: 14, to: 56, captures: [28] },
+      ]),
+    );
+  });
+
+  it("does not allow kings to capture over two pieces in one segment", () => {
+    const board = createBoardWithPieces([
+      [35, { id: "black-35", player: "black", type: "king" }],
+      [26, { id: "white-26", player: "white", type: "man" }],
+      [17, { id: "white-17", player: "white", type: "man" }],
+    ]);
+
+    expect(
+      getLegalMoves(board, "black").some(
+        (move) => move.to === 8 && move.captures?.includes(26),
+      ),
+    ).toBe(false);
   });
 
   it("requires king captures over simple moves", () => {
@@ -165,10 +221,23 @@ describe("checkers kings", () => {
       [26, { id: "white-26", player: "white", type: "man" }],
     ]);
 
-    expect(getLegalMoves(board, "black")).toEqual([
-      { from: 35, to: 17, captures: [26] },
-    ]);
+    expect(getLegalMoves(board, "black")).toEqual(
+      expect.arrayContaining([{ from: 35, to: 17, captures: [26] }]),
+    );
     expect(isLegalMove(board, "black", { from: 21, to: 28 })).toBe(false);
+  });
+
+  it("requires flying king captures over simple moves", () => {
+    const board = createBoardWithPieces([
+      [14, { id: "black-14", player: "black", type: "king" }],
+      [28, { id: "white-28", player: "white", type: "man" }],
+      [23, { id: "black-23", player: "black", type: "man" }],
+    ]);
+
+    expect(getLegalMoves(board, "black")).toEqual(
+      expect.arrayContaining([{ from: 14, to: 35, captures: [28] }]),
+    );
+    expect(isLegalMove(board, "black", { from: 23, to: 30 })).toBe(false);
   });
 });
 

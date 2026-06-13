@@ -6,15 +6,19 @@
 
 ## Initial Scope
 
-The first implementation will be English draughts / 8x8 checkers.
+The first implementation is now an 8x8 kabe/checkers variant. It started from
+English draughts, but kings/tammid use flying movement and capture rules.
 
 This means:
 
 - 8x8 board.
 - Two players.
 - Diagonal movement.
-- Captures according to the selected English draughts ruleset.
-- Kings added as part of the checkers milestone plan.
+- Mandatory captures.
+- Regular pieces move and capture forward.
+- Kings/tammid move any number of empty diagonal squares.
+- Kings/tammid capture by jumping one opponent piece on a diagonal and landing
+  on any empty square beyond it on the same diagonal.
 - Browser-based interaction using React.
 
 Estonian or international 10x10 draughts may be added later as a separate ruleset. The first implementation should not mix 8x8 and 10x10 rules.
@@ -49,4 +53,3 @@ A ChatGPT/OpenAI opponent can come later behind the same `AiOpponent` interface.
 - Drag and drop.
 - OpenAI integration.
 - Advanced checkers strategy.
-

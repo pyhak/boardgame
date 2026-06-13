@@ -67,6 +67,10 @@ export function getCapturingMovesForSquare(
 
   const piece = fromSquare.piece;
 
+  if (piece.type === "king") {
+    return getKingCapturingMovesForSquare(board, from, piece);
+  }
+
   return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
     const middle = getSquareIndex(
       board,
@@ -80,8 +84,8 @@ export function getCapturingMovesForSquare(
     );
 
     if (middle === null || to === null || board.squares[to].piece !== null) {
-  return [];
-}
+      return [];
+    }
 
     const capturedPiece = board.squares[middle].piece;
 
@@ -115,6 +119,10 @@ function getSimpleMovesForSquare(
   }
 
   const piece = fromSquare.piece;
+
+  if (piece.type === "king") {
+    return getKingSimpleMovesForSquare(board, from);
+  }
 
   return getMoveDirections(piece).flatMap(([rowDelta, columnDelta]) => {
     const to = getSquareIndex(
@@ -225,6 +233,89 @@ function getMoveDirections(piece: CheckersPiece): Array<[number, number]> {
     [rowDelta, -1],
     [rowDelta, 1],
   ];
+}
+
+function getKingSimpleMovesForSquare(
+  board: CheckersBoardState,
+  from: number,
+): Move[] {
+  const fromSquare = board.squares[from];
+  const moves: Move[] = [];
+
+  for (const [rowDelta, columnDelta] of getMoveDirections({
+    id: "king-directions",
+    player: "black",
+    type: "king",
+  })) {
+    let row = fromSquare.coordinate.row + rowDelta;
+    let column = fromSquare.coordinate.column + columnDelta;
+
+    while (true) {
+      const to = getSquareIndex(board, row, column);
+
+      if (to === null || board.squares[to].piece !== null) {
+        break;
+      }
+
+      moves.push({ from, to });
+      row += rowDelta;
+      column += columnDelta;
+    }
+  }
+
+  return moves;
+}
+
+function getKingCapturingMovesForSquare(
+  board: CheckersBoardState,
+  from: number,
+  piece: CheckersPiece,
+): Move[] {
+  const fromSquare = board.squares[from];
+  const moves: Move[] = [];
+
+  for (const [rowDelta, columnDelta] of getMoveDirections(piece)) {
+    let capturedIndex: number | null = null;
+    let row = fromSquare.coordinate.row + rowDelta;
+    let column = fromSquare.coordinate.column + columnDelta;
+
+    while (true) {
+      const index = getSquareIndex(board, row, column);
+
+      if (index === null) {
+        break;
+      }
+
+      const squarePiece = board.squares[index].piece;
+
+      if (!squarePiece && capturedIndex === null) {
+        row += rowDelta;
+        column += columnDelta;
+        continue;
+      }
+
+      if (!squarePiece && capturedIndex !== null) {
+        moves.push({ from, to: index, captures: [capturedIndex] });
+        row += rowDelta;
+        column += columnDelta;
+        continue;
+      }
+
+      if (squarePiece?.player === piece.player) {
+        break;
+      }
+
+      if (capturedIndex !== null) {
+        break;
+      }
+
+      capturedIndex = index;
+      row += rowDelta;
+      column += columnDelta;
+    }
+  }
+
+  return moves;
 }
 
 function hasAnyCapture(board: CheckersBoardState, player: Player): boolean {

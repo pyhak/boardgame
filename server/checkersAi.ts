@@ -57,7 +57,20 @@ export async function chooseCheckersAiMove(
   request: CheckersAiMoveRequest,
   openAiClient: OpenAiMoveClient,
 ): Promise<CheckersAiMoveResponse> {
+  console.info("Selecting checkers AI move", {
+    currentPlayer: request.currentPlayer,
+    legalMoveCount: request.legalMoves.length,
+    forcedPieceSquareIndex: request.position.forcedPieceSquareIndex,
+    winner: request.position.winner,
+  });
+
   if (request.legalMoves.length === 0 || request.position.winner) {
+    console.warn("No legal checkers AI move available", {
+      currentPlayer: request.currentPlayer,
+      legalMoveCount: request.legalMoves.length,
+      forcedPieceSquareIndex: request.position.forcedPieceSquareIndex,
+      winner: request.position.winner,
+    });
     return {
       move: null,
       selectedIndex: null,
@@ -68,9 +81,19 @@ export async function chooseCheckersAiMove(
 
   try {
     const selectedIndex = await openAiClient.chooseMoveIndex(request);
+    console.info("OpenAI selected checkers move index", {
+      currentPlayer: request.currentPlayer,
+      selectedIndex,
+      legalMoveCount: request.legalMoves.length,
+    });
     const move = selectLegalMoveByIndex(request.legalMoves, selectedIndex);
 
     if (!move) {
+      console.warn("OpenAI selected an invalid checkers move index", {
+        currentPlayer: request.currentPlayer,
+        selectedIndex,
+        legalMoveCount: request.legalMoves.length,
+      });
       return {
         move: null,
         selectedIndex,
@@ -84,12 +107,24 @@ export async function chooseCheckersAiMove(
       selectedIndex,
       fallback: false,
     };
-  } catch {
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error && error.message
+        ? error.message
+        : "OpenAI move selection failed.";
+
+    console.warn("OpenAI checkers move selection threw", {
+      currentPlayer: request.currentPlayer,
+      legalMoveCount: request.legalMoves.length,
+      forcedPieceSquareIndex: request.position.forcedPieceSquareIndex,
+      winner: request.position.winner,
+      error: errorMessage,
+    });
     return {
       move: null,
       selectedIndex: null,
       fallback: true,
-      error: "OpenAI move selection failed.",
+      error: errorMessage,
     };
   }
 }

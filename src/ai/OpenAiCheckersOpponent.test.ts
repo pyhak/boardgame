@@ -55,6 +55,39 @@ describe("OpenAiCheckersOpponent", () => {
         player: gameState.currentPlayer,
         legalMoves,
       }),
-    ).resolves.toBeNull();
+    ).rejects.toThrow("OpenAI proxy returned an illegal move.");
+  });
+
+  it("throws when the proxy returns a fallback response", async () => {
+    const gameState = checkersGameService.createInitialState();
+    const legalMoves = checkersGameService.getLegalMoves(gameState);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          move: null,
+          fallback: true,
+          error: "OpenAI API request failed: rate limit.",
+        }),
+        { status: 502 },
+      ),
+    );
+
+    const opponent = new OpenAiCheckersOpponent("/api/test");
+
+    await expect(
+      opponent.chooseMove({
+        position: gameState,
+        player: gameState.currentPlayer,
+        legalMoves,
+      }),
+    ).rejects.toThrow("OpenAI API request failed: rate limit.");
+    expect(console.warn).toHaveBeenCalledWith(
+      "OpenAI checkers move request failed",
+      expect.objectContaining({
+        endpoint: "/api/test",
+        status: 502,
+      }),
+    );
   });
 });

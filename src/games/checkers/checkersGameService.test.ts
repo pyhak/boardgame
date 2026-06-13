@@ -72,6 +72,25 @@ describe("checkersGameService", () => {
     expect(nextState.board.squares[24].piece?.player).toBe("black");
   });
 
+  it("switches turns after normal moves even when the moved piece could capture next", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [17, { id: "black-17", player: "black", type: "man" }],
+        [35, { id: "white-35", player: "white", type: "man" }],
+        [56, { id: "white-56", player: "white", type: "man" }],
+      ]),
+    );
+    const nextState = checkersGameService.applyMove(gameState, {
+      from: 17,
+      to: 26,
+    });
+
+    expect(nextState.currentPlayer).toBe("white");
+    expect(nextState.forcedPieceSquareIndex).toBeNull();
+    expect(nextState.selectedSquareIndex).toBeNull();
+    expect(nextState.statusMessage).toBe("White to move");
+  });
+
   it("can apply a service-level move without click selection", () => {
     const gameState = checkersGameService.createInitialState();
     const nextState = checkersGameService.applyMove(gameState, {
@@ -247,6 +266,36 @@ describe("checkersGameService", () => {
     expect(nextState.board.squares[3].piece?.type).toBe("king");
     expect(nextState.board.squares[10].piece).toBeNull();
     expect(nextState.statusMessage).toBe("Black wins");
+  });
+
+  it("continues flying king multi-captures only after a capture", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [14, { id: "black-14", player: "black", type: "king" }],
+        [28, { id: "white-28", player: "white", type: "man" }],
+        [44, { id: "white-44", player: "white", type: "man" }],
+        [63, { id: "white-63", player: "white", type: "man" }],
+      ]),
+    );
+
+    const forcedState = checkersGameService.applyMove(gameState, {
+      from: 14,
+      to: 35,
+    });
+
+    expect(forcedState.currentPlayer).toBe("black");
+    expect(forcedState.forcedPieceSquareIndex).toBe(35);
+    expect(forcedState.legalTargetIndexes).toEqual([53, 62]);
+
+    const nextState = checkersGameService.applyMove(forcedState, {
+      from: 35,
+      to: 53,
+    });
+
+    expect(nextState.currentPlayer).toBe("white");
+    expect(nextState.forcedPieceSquareIndex).toBeNull();
+    expect(nextState.board.squares[28].piece).toBeNull();
+    expect(nextState.board.squares[44].piece).toBeNull();
   });
 });
 
