@@ -13,6 +13,7 @@ function extractOpenAiFailureReason(error: unknown): string | null {
   }
 
   const message = error.message.trim();
+  const normalizedMessage = message.toLowerCase();
 
   if (!message) {
     return null;
@@ -23,27 +24,30 @@ function extractOpenAiFailureReason(error: unknown): string | null {
     return reason.endsWith(".") ? reason.slice(0, -1) : reason;
   }
 
-  if (message.includes("rate limit") || message.includes("Too Many Requests")) {
+  if (
+    normalizedMessage.includes("rate limit") ||
+    normalizedMessage.includes("too many requests")
+  ) {
     return "rate limit";
   }
 
   if (
-    message.includes("invalid model") ||
-    message.includes("model not found") ||
-    message.includes("model")
+    normalizedMessage.includes("invalid model") ||
+    normalizedMessage.includes("model not found") ||
+    normalizedMessage.includes("model")
   ) {
     return "invalid model";
   }
 
   if (
-    message.includes("server error") ||
-    message.includes("internal server error") ||
-    message.includes("service unavailable")
+    normalizedMessage.includes("server error") ||
+    normalizedMessage.includes("internal server error") ||
+    normalizedMessage.includes("service unavailable")
   ) {
     return "server error";
   }
 
-  if (message.includes("invalid move index")) {
+  if (normalizedMessage.includes("invalid move index")) {
     return "invalid move index";
   }
 
