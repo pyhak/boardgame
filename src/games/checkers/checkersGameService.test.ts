@@ -153,6 +153,46 @@ describe("checkersGameService", () => {
     expect(nextState.statusMessage).toBe("Black must continue capturing");
   });
 
+  it("keeps the same man forced after the first capture", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [17, { id: "black-17", player: "black", type: "man" }],
+        [26, { id: "white-26", player: "white", type: "man" }],
+        [44, { id: "white-44", player: "white", type: "man" }],
+      ]),
+    );
+
+    const nextState = checkersGameService.applyMove(gameState, {
+      from: 17,
+      to: 35,
+    });
+
+    expect(nextState.forcedPieceSquareIndex).toBe(35);
+    expect(nextState.selectedSquareIndex).toBe(35);
+    expect(nextState.legalTargetIndexes).toEqual([53]);
+    expect(nextState.currentPlayer).toBe("black");
+  });
+
+  it("does not allow changing to another piece during a capture chain", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [17, { id: "black-17", player: "black", type: "man" }],
+        [21, { id: "black-21", player: "black", type: "man" }],
+        [26, { id: "white-26", player: "white", type: "man" }],
+        [44, { id: "white-44", player: "white", type: "man" }],
+      ]),
+    );
+
+    const forcedState = checkersGameService.applyMove(gameState, {
+      from: 17,
+      to: 35,
+    });
+
+    expect(
+      checkersGameService.handleSquareClick(forcedState, 21),
+    ).toBe(forcedState);
+  });
+
   it("returns capture and promotion indicators in move records", () => {
     const captureResult = checkersGameService.applyMoveWithResult(
       createGameState(
@@ -238,6 +278,30 @@ describe("checkersGameService", () => {
     expect(nextState.statusMessage).toBe("White to move");
   });
 
+  it("captures two pieces in one turn with a man", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [17, { id: "black-17", player: "black", type: "man" }],
+        [26, { id: "white-26", player: "white", type: "man" }],
+        [44, { id: "white-44", player: "white", type: "man" }],
+      ]),
+    );
+
+    const forcedState = checkersGameService.applyMove(gameState, {
+      from: 17,
+      to: 35,
+    });
+    const nextState = checkersGameService.applyMove(forcedState, {
+      from: 35,
+      to: 53,
+    });
+
+    expect(nextState.winner).toBe("black");
+    expect(nextState.board.squares[26].piece).toBeNull();
+    expect(nextState.board.squares[44].piece).toBeNull();
+    expect(nextState.board.squares[53].piece?.player).toBe("black");
+  });
+
   it("continues multi-captures with kings", () => {
     const gameState = createGameState(
       createBoardWithPieces([
@@ -266,6 +330,30 @@ describe("checkersGameService", () => {
     expect(nextState.board.squares[3].piece?.type).toBe("king");
     expect(nextState.board.squares[10].piece).toBeNull();
     expect(nextState.statusMessage).toBe("Black wins");
+  });
+
+  it("captures two pieces in one turn with a king", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [35, { id: "black-35", player: "black", type: "king" }],
+        [26, { id: "white-26", player: "white", type: "man" }],
+        [10, { id: "white-10", player: "white", type: "man" }],
+      ]),
+    );
+
+    const forcedState = checkersGameService.applyMove(gameState, {
+      from: 35,
+      to: 17,
+    });
+    const nextState = checkersGameService.applyMove(forcedState, {
+      from: 17,
+      to: 3,
+    });
+
+    expect(nextState.winner).toBe("black");
+    expect(nextState.board.squares[26].piece).toBeNull();
+    expect(nextState.board.squares[10].piece).toBeNull();
+    expect(nextState.board.squares[3].piece?.type).toBe("king");
   });
 
   it("continues flying king multi-captures only after a capture", () => {

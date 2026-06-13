@@ -63,6 +63,14 @@ function handleSquareClickWithResult(
   const isCurrentPlayerPiece =
     square?.piece?.player === gameState.currentPlayer;
 
+  if (
+    gameState.forcedPieceSquareIndex !== null &&
+    squareIndex !== gameState.forcedPieceSquareIndex &&
+    isCurrentPlayerPiece
+  ) {
+    return unchanged(gameState);
+  }
+
   if (gameState.selectedSquareIndex === null) {
     return isCurrentPlayerPiece
       ? stateOnly(selectSquare(gameState, squareIndex))
@@ -101,6 +109,7 @@ function applyCheckersMoveWithResult(
   }
 
   const moveRecord = createMoveRecord(gameState, nextBoard, move);
+  const didCapture = moveRecord.captures.length > 0;
   const winner = getWinner(nextBoard);
 
   if (winner) {
@@ -118,10 +127,9 @@ function applyCheckersMoveWithResult(
     };
   }
 
-  const continuedCaptures =
-    moveRecord.captures.length > 0
-      ? getCapturingMovesForSquare(nextBoard, move.to, gameState.currentPlayer)
-      : [];
+  const continuedCaptures = didCapture
+    ? getCapturingMovesForSquare(nextBoard, move.to, gameState.currentPlayer)
+    : [];
 
   if (continuedCaptures.length > 0) {
     return {
