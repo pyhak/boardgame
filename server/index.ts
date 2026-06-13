@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { createServerApp } from "./app";
 import { ResponsesApiMoveClient } from "./openAiMoveClient";
 
