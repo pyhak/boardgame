@@ -1,6 +1,6 @@
 import type { Move, Player } from "../engine/gameEngine";
 import { checkersGameService } from "../games/checkers/checkersGameService";
-import { getCapturingMoves, getOpponent } from "../games/checkers/checkersRules";
+import { getOpponent } from "../games/checkers/checkersRules";
 import type { CheckersGameState } from "../games/checkers/checkersTypes";
 import type { AiMoveInput, AiOpponent } from "./AiOpponent";
 
@@ -8,7 +8,17 @@ export type LocalAiDifficulty = "algaja" | "oskaja" | "meister";
 
 type RandomNumberGenerator = () => number;
 
-const masterSearchDepth = 3;
+const masterSearchDepth = 4;
+const manValue = 120;
+const kingValue = 340;
+const captureValue = 420;
+const promotionValue = 520;
+const continuationBonus = 260;
+const opponentDangerPenalty = 420;
+const opponentPromotionPenalty = 620;
+const edgePenalty = 25;
+const backtrackingPenalty = 220;
+const promotionThreatBonus = 140;
 
 export class LocalCheckersAiOpponent
   implements AiOpponent<CheckersGameState, Move>
@@ -77,7 +87,7 @@ export function chooseMasterMove(
       Number.POSITIVE_INFINITY,
     );
 
-    return score + scoreMoveBasics(state, move, player) * 10;
+    return score + scoreSkilledMove(aiInput, state, move, player) / 4;
   });
 }
 
@@ -112,16 +122,25 @@ function scoreSkilledMove(
 ): number {
   const result = checkersGameService.applyMoveWithResult(state, move);
   const movedPiece = state.board.squares[move.from].piece;
-  let score = scoreMoveBasics(state, move, player);
+  let score =
+    evaluateBoard(state.board, player) * -1 +
+    evaluateBoard(result.gameState.board, player);
   const previousOwnMove = findPreviousOwnMove(input.history, player);
   const opponent = getOpponent(player);
+  const captureCount = result.moveRecord?.captures.length ?? 0;
+  const continuationScore = scoreForcedContinuation(
+    result.gameState,
+    player,
+    3,
+  );
 
-  if (result.moveRecord?.captures.length) {
-    score += result.moveRecord.captures.length * 200;
+  if (captureCount > 0) {
+    score += captureValue * captureCount;
+    score += Math.max(0, captureCount - 1) * 220;
   }
 
   if (result.moveRecord?.promotion) {
-    score += 150;
+    score += promotionValue;
   }
 
   if (result.gameState.winner === player) {
@@ -129,74 +148,36 @@ function scoreSkilledMove(
   }
 
   if (previousOwnMove && isBacktrackingMove(move, previousOwnMove)) {
-    score -= 180;
+    score -= backtrackingPenalty;
   }
 
-  if (!result.moveRecord?.captures.length && !result.moveRecord?.promotion) {
-    const touchesEdge = isEdgeSquare(move.from) || isEdgeSquare(move.to);
-    const staysOnEdge = isEdgeSquare(move.from) && isEdgeSquare(move.to);
-
-    if (touchesEdge) {
-      score -= 15;
-    }
-
-    if (staysOnEdge) {
-      score -= 25;
-    }
+  if (!captureCount && !result.moveRecord?.promotion) {
+    score -= scoreEdgeShuffling(move);
   }
 
   if (isPromotionThreat(state, movedPiece, move.to)) {
-    score += 35;
+    score += promotionThreatBonus;
   }
 
-  score += scoreOpponentCaptureReduction(state.board, result.gameState.board, opponent) * 12;
+  score += continuationScore;
 
   if (
     result.gameState.currentPlayer !== player &&
     result.gameState.winner === null
   ) {
-    const opponentCaptures = checkersGameService
-      .getLegalMoves(result.gameState)
-      .filter((candidate) => (candidate.captures?.length ?? 0) > 0);
-
-    const movedPieceVulnerable = opponentCaptures.some((candidate) =>
-      candidate.captures?.includes(move.to),
-    );
-
-    score += movedPieceVulnerable ? -120 : 40;
+    score -= scoreOpponentDanger(result.gameState, player);
+    score += scoreOpponentCaptureReduction(
+      state.board,
+      result.gameState.board,
+      opponent,
+    ) * 18;
   }
 
   if (
     result.gameState.currentPlayer === player &&
     result.gameState.forcedPieceSquareIndex !== null
   ) {
-    score += result.gameState.legalTargetIndexes.length * 25;
-  }
-
-  return score;
-}
-
-function scoreMoveBasics(
-  state: CheckersGameState,
-  move: Move,
-  player: CheckersGameState["currentPlayer"],
-): number {
-  const movedPiece = state.board.squares[move.from].piece;
-  const destinationRow = state.board.squares[move.to].coordinate.row;
-  let score = 0;
-
-  if (!movedPiece) {
-    return score;
-  }
-
-  score += movedPiece.type === "king" ? 80 : 30;
-
-  if (movedPiece.type === "man") {
-    const advancement =
-      player === "black"
-        ? destinationRow
-        : state.board.height - 1 - destinationRow;
-    score += advancement * 3;
+    score += result.gameState.legalTargetIndexes.length * continuationBonus;
   }
 
   return score;
@@ -232,6 +213,21 @@ function isEdgeSquare(index: number): boolean {
   return row === 0 || row === 7 || column === 0 || column === 7;
 }
 
+function scoreEdgeShuffling(move: Move): number {
+  const fromEdge = isEdgeSquare(move.from);
+  const toEdge = isEdgeSquare(move.to);
+
+  if (fromEdge && toEdge) {
+    return edgePenalty * 2;
+  }
+
+  if (fromEdge || toEdge) {
+    return edgePenalty;
+  }
+
+  return 0;
+}
+
 function isPromotionThreat(
   state: CheckersGameState,
   movedPiece: CheckersGameState["board"]["squares"][number]["piece"],
@@ -252,10 +248,157 @@ function scoreOpponentCaptureReduction(
   afterBoard: CheckersGameState["board"],
   opponent: Player,
 ): number {
-  const beforeCaptures = getCapturingMoves(beforeBoard, opponent).length;
-  const afterCaptures = getCapturingMoves(afterBoard, opponent).length;
+  const beforeCaptures = countCaptures(beforeBoard, opponent);
+  const afterCaptures = countCaptures(afterBoard, opponent);
 
   return beforeCaptures - afterCaptures;
+}
+
+function countCaptures(
+  board: CheckersGameState["board"],
+  player: Player,
+): number {
+  return checkersGameService.getLegalMoves({
+    board,
+    currentPlayer: player,
+    selectedSquareIndex: null,
+    legalTargetIndexes: [],
+    forcedPieceSquareIndex: null,
+    winner: null,
+    statusMessage: "",
+  }).filter((move) => (move.captures?.length ?? 0) > 0).length;
+}
+
+function scoreOpponentDanger(
+  state: CheckersGameState,
+  player: CheckersGameState["currentPlayer"],
+): number {
+  const opponent = getOpponent(player);
+  const replies = checkersGameService
+    .getLegalMoves(state)
+    .filter((candidate) => state.board.squares[candidate.from].piece?.player === opponent);
+
+  if (replies.length === 0) {
+    return 0;
+  }
+
+  let worstDanger = 0;
+
+  for (const reply of replies) {
+    const replyResult = checkersGameService.applyMoveWithResult(state, reply);
+    const replyCaptures = replyResult.moveRecord?.captures.length ?? 0;
+    let danger =
+      evaluateBoard(state.board, player) - evaluateBoard(replyResult.gameState.board, player);
+
+    if (replyCaptures > 0) {
+      danger += opponentDangerPenalty * replyCaptures;
+      danger += Math.max(0, replyCaptures - 1) * 200;
+    }
+
+    if (replyResult.moveRecord?.promotion) {
+      danger += opponentPromotionPenalty;
+    }
+
+    if (
+      replyResult.gameState.currentPlayer === opponent &&
+      replyResult.gameState.forcedPieceSquareIndex !== null
+    ) {
+      danger += continuationBonus * 2;
+      danger += scoreForcedContinuation(replyResult.gameState, opponent, 3);
+    }
+
+    if (replyResult.gameState.winner === opponent) {
+      danger += 5000;
+    }
+
+    if (replyResult.gameState.winner === player) {
+      danger -= 5000;
+    }
+
+    worstDanger = Math.max(worstDanger, danger);
+  }
+
+  return worstDanger;
+}
+
+function scoreForcedContinuation(
+  state: CheckersGameState,
+  player: CheckersGameState["currentPlayer"],
+  depth: number,
+): number {
+  if (depth <= 0 || state.winner !== null) {
+    return 0;
+  }
+
+  if (state.currentPlayer !== player || state.forcedPieceSquareIndex === null) {
+    return 0;
+  }
+
+  const forcedMoves = checkersGameService
+    .getLegalMoves(state)
+    .filter((move) => move.from === state.forcedPieceSquareIndex);
+
+  let bestScore = 0;
+
+  for (const move of forcedMoves) {
+    const result = checkersGameService.applyMoveWithResult(state, move);
+    const captures = result.moveRecord?.captures.length ?? 0;
+    let score = captures * captureValue;
+
+    if (captures > 1) {
+      score += (captures - 1) * 220;
+    }
+
+    if (result.moveRecord?.promotion) {
+      score += promotionValue;
+    }
+
+    if (result.gameState.winner === player) {
+      score += 2000;
+    }
+
+    score += evaluateBoard(result.gameState.board, player) -
+      evaluateBoard(state.board, player);
+
+    if (
+      result.gameState.currentPlayer === player &&
+      result.gameState.forcedPieceSquareIndex !== null
+    ) {
+      score += scoreForcedContinuation(result.gameState, player, depth - 1);
+    }
+
+    bestScore = Math.max(bestScore, score);
+  }
+
+  return bestScore;
+}
+
+function evaluateBoard(
+  board: CheckersGameState["board"],
+  perspectivePlayer: Player,
+): number {
+  let score = 0;
+
+  for (const square of board.squares) {
+    if (!square.piece) {
+      continue;
+    }
+
+    const pieceValue = square.piece.type === "king" ? kingValue : manValue;
+    const advancement =
+      square.piece.type === "man"
+        ? square.piece.player === "black"
+          ? square.coordinate.row * 8
+          : (board.height - 1 - square.coordinate.row) * 8
+        : 0;
+    const pieceScore = pieceValue + advancement;
+
+    score += square.piece.player === perspectivePlayer
+      ? pieceScore
+      : -pieceScore;
+  }
+
+  return score;
 }
 
 function minimax(
@@ -269,7 +412,11 @@ function minimax(
     return evaluateState(state, maximizingPlayer);
   }
 
-  const legalMoves = checkersGameService.getLegalMoves(state);
+  const legalMoves = orderMovesForSearch(
+    state,
+    checkersGameService.getLegalMoves(state),
+    maximizingPlayer,
+  );
 
   if (legalMoves.length === 0) {
     return evaluateState(state, maximizingPlayer);
@@ -300,6 +447,49 @@ function minimax(
   return bestScore;
 }
 
+function orderMovesForSearch(
+  state: CheckersGameState,
+  moves: Move[],
+  maximizingPlayer: CheckersGameState["currentPlayer"],
+): Move[] {
+  return [...moves].sort((left, right) => {
+    const leftScore = scoreSearchMove(state, left, maximizingPlayer);
+    const rightScore = scoreSearchMove(state, right, maximizingPlayer);
+
+    return rightScore - leftScore;
+  });
+}
+
+function scoreSearchMove(
+  state: CheckersGameState,
+  move: Move,
+  maximizingPlayer: CheckersGameState["currentPlayer"],
+): number {
+  const result = checkersGameService.applyMoveWithResult(state, move);
+  const captures = result.moveRecord?.captures.length ?? 0;
+  let score =
+    evaluateState(result.gameState, maximizingPlayer) -
+    evaluateState(state, maximizingPlayer);
+
+  score += captures * captureValue;
+  if (result.moveRecord?.promotion) {
+    score += promotionValue;
+  }
+
+  if (result.gameState.winner === maximizingPlayer) {
+    score += 2000;
+  }
+
+  if (
+    result.gameState.currentPlayer === maximizingPlayer &&
+    result.gameState.forcedPieceSquareIndex !== null
+  ) {
+    score += result.gameState.legalTargetIndexes.length * continuationBonus;
+  }
+
+  return score;
+}
+
 function evaluateState(
   state: CheckersGameState,
   maximizingPlayer: CheckersGameState["currentPlayer"],
@@ -312,26 +502,5 @@ function evaluateState(
     return -100_000;
   }
 
-  let score = 0;
-
-  for (const square of state.board.squares) {
-    if (!square.piece) {
-      continue;
-    }
-
-    const isMaximizingPiece = square.piece.player === maximizingPlayer;
-    const pieceValue = square.piece.type === "king" ? 180 : 100;
-    const advancementBonus =
-      square.piece.type === "man"
-        ? (square.piece.player === "black"
-            ? square.coordinate.row
-            : state.board.height - 1 - square.coordinate.row) * 3
-        : 0;
-
-    score += isMaximizingPiece
-      ? pieceValue + advancementBonus
-      : -(pieceValue + advancementBonus);
-  }
-
-  return score;
+  return evaluateBoard(state.board, maximizingPlayer);
 }

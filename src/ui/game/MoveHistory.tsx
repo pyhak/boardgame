@@ -20,6 +20,7 @@ export function MoveHistory({ moves }: MoveHistoryProps) {
               </span>
               {move.captures.length > 0 ? <strong>capture</strong> : null}
               {move.promotion ? <strong>king</strong> : null}
+              {move.comment ? <span className="move-comment">{move.comment}</span> : null}
             </li>
           ))}
         </ol>

@@ -26,4 +26,5 @@ export interface CheckersMoveRecord {
   to: number;
   captures: number[];
   promotion: boolean;
+  comment?: string | null;
 }

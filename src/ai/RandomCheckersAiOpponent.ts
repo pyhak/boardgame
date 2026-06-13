@@ -1,10 +1,8 @@
 import type { Move } from "../engine/gameEngine";
-import { checkersGameService } from "../games/checkers/checkersGameService";
 import type { CheckersGameState } from "../games/checkers/checkersTypes";
 import type { AiMoveInput, AiOpponent } from "./AiOpponent";
 
 type RandomNumberGenerator = () => number;
-type CheckersLegalMoveProvider = (position: CheckersGameState) => Move[];
 
 export class RandomCheckersAiOpponent
   implements AiOpponent<CheckersGameState, Move>
@@ -14,8 +12,6 @@ export class RandomCheckersAiOpponent
 
   constructor(
     private readonly random: RandomNumberGenerator = Math.random,
-    private readonly getLegalMoves: CheckersLegalMoveProvider = (position) =>
-      checkersGameService.getLegalMoves(position),
   ) {}
 
   async chooseMove(
@@ -25,7 +21,7 @@ export class RandomCheckersAiOpponent
       return null;
     }
 
-    const legalMoves = this.getLegalMoves(input.position);
+    const legalMoves = input.legalMoves;
 
     if (legalMoves.length === 0) {
       return null;

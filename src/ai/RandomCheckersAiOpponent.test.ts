@@ -17,7 +17,7 @@ describe("RandomCheckersAiOpponent", () => {
     const move = await ai.chooseMove({
       position: gameState,
       player: gameState.currentPlayer,
-      legalMoves: [{ from: 0, to: 9 }],
+      legalMoves,
     });
 
     expect(move).not.toBeNull();

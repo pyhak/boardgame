@@ -4,6 +4,10 @@ export interface AiMoveInput<TPosition, TMove extends Move = Move> {
   position: TPosition;
   player: Player;
   legalMoves: TMove[];
+  history?: Array<{
+    player: Player;
+    move: TMove;
+  }>;
 }
 
 export interface AiOpponent<TPosition, TMove extends Move = Move> {
