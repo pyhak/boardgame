@@ -2,8 +2,10 @@ import type { Move } from "../../engine/gameEngine";
 import { createInitialCheckersGameState } from "./checkersSetup";
 import {
   applyMove,
+  getCapturingMovesForSquare,
   getLegalMovesForSquare,
   getOpponent,
+  getWinner,
 } from "./checkersRules";
 import type { CheckersGameState } from "./checkersTypes";
 
@@ -26,6 +28,10 @@ function handleSquareClick(
   gameState: CheckersGameState,
   squareIndex: number,
 ): CheckersGameState {
+  if (gameState.winner) {
+    return gameState;
+  }
+
   const square = gameState.board.squares[squareIndex];
   const isCurrentPlayerPiece =
     square?.piece?.player === gameState.currentPlayer;
@@ -48,17 +54,58 @@ function applyCheckersMove(
   gameState: CheckersGameState,
   move: Move,
 ): CheckersGameState {
+  if (gameState.winner || !canMovePiece(gameState, move.from)) {
+    return gameState;
+  }
+
   const nextBoard = applyMove(gameState.board, gameState.currentPlayer, move);
 
   if (nextBoard === gameState.board) {
     return gameState;
   }
 
+  const winner = getWinner(nextBoard);
+
+  if (winner) {
+    return {
+      board: nextBoard,
+      currentPlayer: gameState.currentPlayer,
+      selectedSquareIndex: null,
+      legalTargetIndexes: [],
+      forcedPieceSquareIndex: null,
+      winner,
+      statusMessage: `${formatPlayer(winner)} wins`,
+    };
+  }
+
+  const continuedCaptures = getCapturingMovesForSquare(
+    nextBoard,
+    move.to,
+    gameState.currentPlayer,
+  );
+
+  if (continuedCaptures.length > 0) {
+    return {
+      board: nextBoard,
+      currentPlayer: gameState.currentPlayer,
+      selectedSquareIndex: move.to,
+      legalTargetIndexes: continuedCaptures.map((continuedMove) => continuedMove.to),
+      forcedPieceSquareIndex: move.to,
+      winner: null,
+      statusMessage: `${formatPlayer(gameState.currentPlayer)} must continue capturing`,
+    };
+  }
+
+  const nextPlayer = getOpponent(gameState.currentPlayer);
+
   return {
     board: nextBoard,
-    currentPlayer: getOpponent(gameState.currentPlayer),
+    currentPlayer: nextPlayer,
     selectedSquareIndex: null,
     legalTargetIndexes: [],
+    forcedPieceSquareIndex: null,
+    winner: null,
+    statusMessage: `${formatPlayer(nextPlayer)} to move`,
   };
 }
 
@@ -66,6 +113,10 @@ function selectSquare(
   gameState: CheckersGameState,
   squareIndex: number,
 ): CheckersGameState {
+  if (!canMovePiece(gameState, squareIndex)) {
+    return gameState;
+  }
+
   return {
     ...gameState,
     selectedSquareIndex: squareIndex,
@@ -75,4 +126,18 @@ function selectSquare(
       gameState.currentPlayer,
     ).map((move) => move.to),
   };
+}
+
+function canMovePiece(
+  gameState: CheckersGameState,
+  squareIndex: number,
+): boolean {
+  return (
+    gameState.forcedPieceSquareIndex === null ||
+    gameState.forcedPieceSquareIndex === squareIndex
+  );
+}
+
+function formatPlayer(player: string): string {
+  return player === "black" ? "Black" : "White";
 }

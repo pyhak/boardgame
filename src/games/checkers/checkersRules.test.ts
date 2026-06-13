@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { createEmptyBoardState } from "../../engine/gameEngine";
 import { createInitialCheckersGameState } from "./checkersSetup";
-import { getLegalMoves, isLegalMove } from "./checkersRules";
+import {
+  applyMove,
+  getLegalMoves,
+  getWinner,
+  isLegalMove,
+} from "./checkersRules";
+import type { CheckersBoardState, CheckersPiece } from "./checkersTypes";
 
 describe("checkers initial setup", () => {
   it("places 12 pieces for each player", () => {
@@ -62,4 +69,74 @@ describe("checkers simple movement", () => {
     expect(isLegalMove(board, "black", { from: 17, to: 10 })).toBe(false);
     expect(isLegalMove(board, "white", { from: 40, to: 49 })).toBe(false);
   });
+
+  it("finds legal forward captures", () => {
+    const board = createBoardWithPieces([
+      [17, { id: "black-17", player: "black", type: "man" }],
+      [26, { id: "white-26", player: "white", type: "man" }],
+    ]);
+
+    expect(getLegalMoves(board, "black")).toEqual([
+      { from: 17, to: 35, captures: [26] },
+    ]);
+  });
+
+  it("removes captured pieces when applying a capture", () => {
+    const board = createBoardWithPieces([
+      [17, { id: "black-17", player: "black", type: "man" }],
+      [26, { id: "white-26", player: "white", type: "man" }],
+    ]);
+    const nextBoard = applyMove(board, "black", { from: 17, to: 35 });
+
+    expect(nextBoard.squares[17].piece).toBeNull();
+    expect(nextBoard.squares[26].piece).toBeNull();
+    expect(nextBoard.squares[35].piece?.player).toBe("black");
+  });
+
+  it("makes non-capturing moves illegal when a capture is available", () => {
+    const board = createBoardWithPieces([
+      [17, { id: "black-17", player: "black", type: "man" }],
+      [21, { id: "black-21", player: "black", type: "man" }],
+      [26, { id: "white-26", player: "white", type: "man" }],
+    ]);
+
+    expect(getLegalMoves(board, "black")).toEqual([
+      { from: 17, to: 35, captures: [26] },
+    ]);
+    expect(isLegalMove(board, "black", { from: 21, to: 28 })).toBe(false);
+  });
 });
+
+describe("checkers win detection", () => {
+  it("detects a win when the opponent has no pieces", () => {
+    const board = createBoardWithPieces([
+      [17, { id: "black-17", player: "black", type: "man" }],
+    ]);
+
+    expect(getWinner(board)).toBe("black");
+  });
+
+  it("detects a win when the opponent has no legal moves", () => {
+    const board = createBoardWithPieces([
+      [17, { id: "black-17", player: "black", type: "man" }],
+      [1, { id: "white-1", player: "white", type: "man" }],
+    ]);
+
+    expect(getWinner(board)).toBe("black");
+  });
+});
+
+function createBoardWithPieces(
+  pieces: Array<[number, CheckersPiece]>,
+): CheckersBoardState {
+  const board = createEmptyBoardState<CheckersPiece>();
+  const piecesByIndex = new Map(pieces);
+
+  return {
+    ...board,
+    squares: board.squares.map((square) => ({
+      ...square,
+      piece: piecesByIndex.get(square.index) ?? null,
+    })),
+  };
+}

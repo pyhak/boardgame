@@ -1,9 +1,7 @@
-import type { Player } from "../../engine/gameEngine";
-
 interface GameStatusProps {
-  currentPlayer: Player;
+  statusMessage: string;
 }
 
-export function GameStatus({ currentPlayer }: GameStatusProps) {
-  return <p>{currentPlayer === "black" ? "Black" : "White"} to move</p>;
+export function GameStatus({ statusMessage }: GameStatusProps) {
+  return <p>{statusMessage}</p>;
 }

@@ -20,7 +20,7 @@ export function App() {
       <section className="game-area" aria-labelledby="board-title">
         <header className="game-header">
           <h1 id="board-title">boardgame</h1>
-          <GameStatus currentPlayer={gameState.currentPlayer} />
+          <GameStatus statusMessage={gameState.statusMessage} />
         </header>
         <BoardView
           board={gameState.board}

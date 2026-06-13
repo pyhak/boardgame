@@ -46,6 +46,9 @@ export function createInitialCheckersGameState(): CheckersGameState {
     currentPlayer: "black",
     selectedSquareIndex: null,
     legalTargetIndexes: [],
+    forcedPieceSquareIndex: null,
+    winner: null,
+    statusMessage: "Black to move",
   };
 }
 

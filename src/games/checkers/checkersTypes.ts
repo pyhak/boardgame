@@ -13,6 +13,9 @@ export interface CheckersGameState {
   currentPlayer: Player;
   selectedSquareIndex: number | null;
   legalTargetIndexes: number[];
+  forcedPieceSquareIndex: number | null;
+  winner: Player | null;
+  statusMessage: string;
 }
 
 export type CheckersMove = Move;
