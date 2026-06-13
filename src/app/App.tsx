@@ -1,7 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { OpenAiCheckersOpponent } from "../ai/OpenAiCheckersOpponent";
-import { RandomCheckersAiOpponent } from "../ai/RandomCheckersAiOpponent";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  LocalCheckersAiOpponent,
+  type LocalAiDifficulty,
+} from "../ai/LocalCheckersAiOpponent";
 import { checkersGameService } from "../games/checkers/checkersGameService";
+import {
+  buildCheckersMoveComment,
+  type CheckersMoveActor,
+} from "../games/checkers/checkersCommentary";
 import type { CheckersMoveRecord } from "../games/checkers/checkersTypes";
 import { BoardView } from "../ui/board/BoardView";
 import { GameStatus } from "../ui/game/GameStatus";
@@ -10,27 +16,49 @@ import {
   PlayerControls,
   type GameMode,
 } from "../ui/game/PlayerControls";
-import { formatOpenAiFailureMessage } from "./openAiFailureMessage";
+import { shouldAutoPlayLocalAiTurn } from "./appLogic";
 import "./styles.css";
 
 const aiMoveDelayMs = 400;
+const aiPlayer = "black";
 
 export function App() {
   const [gameState, setGameState] = useState(
     checkersGameService.createInitialState,
   );
   const [moveHistory, setMoveHistory] = useState<CheckersMoveRecord[]>([]);
-  const [gameMode, setGameMode] = useState<GameMode>("human-vs-human");
-  const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
-  const randomAiOpponent = useMemo(() => new RandomCheckersAiOpponent(), []);
-  const openAiOpponent = useMemo(() => new OpenAiCheckersOpponent(), []);
-  const aiOpponent =
-    gameMode === "human-vs-openai-ai" ? openAiOpponent : randomAiOpponent;
-  const isAiTurn =
-    (gameMode === "human-vs-random-ai" ||
-      gameMode === "human-vs-openai-ai") &&
-    gameState.currentPlayer === "black" &&
-    !gameState.winner;
+  const [gameMode, setGameMode] = useState<GameMode>("human-vs-local-ai");
+  const [localAiDifficulty, setLocalAiDifficulty] =
+    useState<LocalAiDifficulty>("oskaja");
+  const localAiOpponent = useMemo(
+    () => new LocalCheckersAiOpponent(localAiDifficulty),
+    [localAiDifficulty],
+  );
+  const appendMoveRecord = useCallback(
+    (
+      moveRecord: CheckersMoveRecord | null,
+      actor: CheckersMoveActor,
+    ) => {
+      if (!moveRecord) {
+        return;
+      }
+
+      const comment =
+        gameMode === "human-vs-local-ai"
+          ? buildCheckersMoveComment(moveRecord, aiPlayer, actor)
+          : null;
+
+      setMoveHistory((currentHistory) => [
+        ...currentHistory,
+        {
+          ...moveRecord,
+          comment,
+        },
+      ]);
+    },
+    [gameMode],
+  );
+  const isAiTurn = shouldAutoPlayLocalAiTurn(gameState, gameMode);
 
   useEffect(() => {
     if (!isAiTurn) {
@@ -47,9 +75,10 @@ export function App() {
         legalMoveCount: legalMoves.length,
         forcedPieceSquareIndex: gameState.forcedPieceSquareIndex,
         winner: gameState.winner,
+        difficulty: localAiDifficulty,
       });
 
-      void aiOpponent
+      void localAiOpponent
         .chooseMove({
           position: gameState,
           player: gameState.currentPlayer,
@@ -65,11 +94,6 @@ export function App() {
               winner: gameState.winner,
               cancelled: isCancelled,
             });
-            if (!isCancelled && gameMode === "human-vs-openai-ai") {
-              setAiErrorMessage(
-                "OpenAI AI ei saanud praegu käiku teha.",
-              );
-            }
             return;
           }
 
@@ -86,23 +110,21 @@ export function App() {
             gameState,
             move,
           );
-          setAiErrorMessage(null);
           setGameState(result.gameState);
-          appendMoveRecord(result.moveRecord);
+          appendMoveRecord(result.moveRecord, "ai");
         })
         .catch((error: unknown) => {
-          // The proxy can be offline or return a safe fallback; keep the board unchanged.
-          if (!isCancelled && gameMode === "human-vs-openai-ai") {
-            console.warn("OpenAI AI move request failed; board unchanged.", {
+          if (!isCancelled) {
+            console.warn("Local AI move request failed; board unchanged.", {
               mode: gameMode,
               player: gameState.currentPlayer,
               legalMoveCount: legalMoves.length,
               forcedPieceSquareIndex: gameState.forcedPieceSquareIndex,
               winner: gameState.winner,
+              difficulty: localAiDifficulty,
               error:
-                error instanceof Error ? error.message : "Unknown OpenAI error",
+                error instanceof Error ? error.message : "Unknown local AI error",
             });
-            setAiErrorMessage(formatOpenAiFailureMessage(error));
           }
         });
     }, aiMoveDelayMs);
@@ -111,7 +133,14 @@ export function App() {
       isCancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [aiOpponent, gameMode, gameState, isAiTurn]);
+  }, [
+    appendMoveRecord,
+    gameMode,
+    gameState,
+    isAiTurn,
+    localAiDifficulty,
+    localAiOpponent,
+  ]);
 
   function handleSquareClick(squareIndex: number) {
     if (isAiTurn) {
@@ -122,28 +151,21 @@ export function App() {
       gameState,
       squareIndex,
     );
-    setAiErrorMessage(null);
     setGameState(result.gameState);
-    appendMoveRecord(result.moveRecord);
+    appendMoveRecord(result.moveRecord, "human");
   }
 
   function handleReset() {
     setGameState(checkersGameService.reset());
     setMoveHistory([]);
-    setAiErrorMessage(null);
   }
 
   function handleModeChange(mode: GameMode) {
     setGameMode(mode);
-    setAiErrorMessage(null);
   }
 
-  function appendMoveRecord(moveRecord: CheckersMoveRecord | null) {
-    if (!moveRecord) {
-      return;
-    }
-
-    setMoveHistory((currentHistory) => [...currentHistory, moveRecord]);
+  function handleDifficultyChange(difficulty: LocalAiDifficulty) {
+    setLocalAiDifficulty(difficulty);
   }
 
   return (
@@ -151,10 +173,19 @@ export function App() {
       <section className="game-area" aria-labelledby="board-title">
         <header className="game-header">
           <h1 id="board-title">boardgame</h1>
-          <GameStatus statusMessage={aiErrorMessage ?? gameState.statusMessage} />
+          <GameStatus
+            statusMessage={gameState.statusMessage}
+            currentPlayer={gameState.currentPlayer}
+            winner={gameState.winner}
+            forcedPieceSquareIndex={gameState.forcedPieceSquareIndex}
+            selectedSquareIndex={gameState.selectedSquareIndex}
+            legalTargetCount={gameState.legalTargetIndexes.length}
+          />
           <PlayerControls
             mode={gameMode}
+            difficulty={localAiDifficulty}
             onModeChange={handleModeChange}
+            onDifficultyChange={handleDifficultyChange}
             onReset={handleReset}
           />
         </header>

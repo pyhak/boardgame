@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createEmptyBoardState } from "../../engine/gameEngine";
 import { checkersGameService } from "./checkersGameService";
+import { getCheckersGameStateInvariantIssues } from "./checkersStateInvariant";
 import type {
   CheckersBoardState,
   CheckersGameState,
@@ -387,6 +388,62 @@ describe("checkersGameService", () => {
     expect(
       thirdCapture.board.squares[notationToIndex("b6")].piece?.player,
     ).toBe("white");
+  });
+
+  it("replays the visible ending tail without leaving the board stuck", () => {
+    const gameState = createGameState(
+      createBoardWithPieces([
+        [10, { id: "black-10", player: "black", type: "man" }],
+        [8, { id: "white-8", player: "white", type: "man" }],
+        [1, { id: "black-1", player: "black", type: "man" }],
+        [19, { id: "white-19", player: "white", type: "man" }],
+        [28, { id: "white-28", player: "white", type: "man" }],
+      ]),
+    );
+
+    const afterBlackC7B6 = checkersGameService.applyMove(gameState, {
+      from: notationToIndex("c7"),
+      to: notationToIndex("b6"),
+    });
+    const afterWhiteA7C5 = checkersGameService.applyMove(afterBlackC7B6, {
+      from: notationToIndex("a7"),
+      to: notationToIndex("c5"),
+    });
+    const afterBlackB8A7 = checkersGameService.applyMove(afterWhiteA7C5, {
+      from: notationToIndex("b8"),
+      to: notationToIndex("a7"),
+    });
+    const afterWhiteD6E7 = checkersGameService.applyMove(afterBlackB8A7, {
+      from: notationToIndex("d6"),
+      to: notationToIndex("e7"),
+    });
+    const finalState = checkersGameService.applyMove(afterWhiteD6E7, {
+      from: notationToIndex("a7"),
+      to: notationToIndex("b6"),
+    });
+
+    expect(getCheckersGameStateInvariantIssues(finalState)).toEqual([]);
+    expect(finalState.forcedPieceSquareIndex).toBeNull();
+    expect(finalState.winner).toBeNull();
+    expect(finalState.currentPlayer).toBe("white");
+
+    const legalMoves = checkersGameService.getLegalMoves(finalState);
+    expect(legalMoves.length).toBeGreaterThan(0);
+    expect(
+      legalMoves.some((move) =>
+        finalState.board.squares[move.from].piece?.player === "white",
+      ),
+    ).toBe(true);
+
+    const selectableMove = legalMoves.find((move) => move.from === 26);
+    expect(selectableMove).toBeDefined();
+    if (selectableMove) {
+      const selectedState = checkersGameService.handleSquareClick(
+        finalState,
+        selectableMove.from,
+      );
+      expect(selectedState.selectedSquareIndex).toBe(selectableMove.from);
+    }
   });
 
   it("promotes a man during a capture and continues the chain as a king", () => {

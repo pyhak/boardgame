@@ -8,6 +8,7 @@ import {
   getOpponent,
   getWinner,
 } from "./checkersRules";
+import { normalizeCheckersGameState } from "./checkersStateInvariant";
 import type { CheckersGameState, CheckersMoveRecord } from "./checkersTypes";
 
 export interface CheckersMoveResult {
@@ -55,6 +56,12 @@ function handleSquareClickWithResult(
   gameState: CheckersGameState,
   squareIndex: number,
 ): CheckersMoveResult {
+  const normalizedGameState = normalizeCheckersGameState(gameState);
+
+  if (normalizedGameState !== gameState) {
+    return stateOnly(normalizedGameState);
+  }
+
   if (gameState.winner) {
     return unchanged(gameState);
   }
@@ -98,60 +105,78 @@ function applyCheckersMoveWithResult(
   gameState: CheckersGameState,
   move: Move,
 ): CheckersMoveResult {
-  if (gameState.winner || !canMovePiece(gameState, move.from)) {
+  const normalizedGameState = normalizeCheckersGameState(gameState);
+
+  if (
+    normalizedGameState !== gameState &&
+    (normalizedGameState.winner !== gameState.winner ||
+      normalizedGameState.forcedPieceSquareIndex !==
+        gameState.forcedPieceSquareIndex ||
+      normalizedGameState.currentPlayer !== gameState.currentPlayer)
+  ) {
+    return stateOnly(normalizedGameState);
+  }
+
+  if (normalizedGameState.winner || !canMovePiece(normalizedGameState, move.from)) {
     return unchanged(gameState);
   }
 
-  const nextBoard = applyMove(gameState.board, gameState.currentPlayer, move);
+  const nextBoard = applyMove(
+    normalizedGameState.board,
+    normalizedGameState.currentPlayer,
+    move,
+  );
 
   if (nextBoard === gameState.board) {
     return unchanged(gameState);
   }
 
-  const moveRecord = createMoveRecord(gameState, nextBoard, move);
+  const moveRecord = createMoveRecord(normalizedGameState, nextBoard, move);
   const didCapture = moveRecord.captures.length > 0;
   const winner = getWinner(nextBoard);
 
   if (winner) {
-    return {
-      gameState: {
+    return stateOnly(
+      normalizeCheckersGameState({
         board: nextBoard,
-        currentPlayer: gameState.currentPlayer,
+        currentPlayer: normalizedGameState.currentPlayer,
         selectedSquareIndex: null,
         legalTargetIndexes: [],
         forcedPieceSquareIndex: null,
         winner,
         statusMessage: `${formatPlayer(winner)} wins`,
-      },
-      moveRecord,
-    };
+      }),
+    );
   }
 
   const continuedCaptures = didCapture
-    ? getCapturingMovesForSquare(nextBoard, move.to, gameState.currentPlayer)
+    ? getCapturingMovesForSquare(
+        nextBoard,
+        move.to,
+        normalizedGameState.currentPlayer,
+      )
     : [];
 
   if (continuedCaptures.length > 0) {
     return {
-      gameState: {
+      gameState: normalizeCheckersGameState({
         board: nextBoard,
-        currentPlayer: gameState.currentPlayer,
+        currentPlayer: normalizedGameState.currentPlayer,
         selectedSquareIndex: move.to,
         legalTargetIndexes: continuedCaptures.map(
           (continuedMove) => continuedMove.to,
         ),
         forcedPieceSquareIndex: move.to,
         winner: null,
-        statusMessage: `${formatPlayer(gameState.currentPlayer)} must continue capturing`,
-      },
+        statusMessage: `${formatPlayer(normalizedGameState.currentPlayer)} must continue capturing`,
+      }),
       moveRecord,
     };
   }
 
-  const nextPlayer = getOpponent(gameState.currentPlayer);
-
+  const nextPlayer = getOpponent(normalizedGameState.currentPlayer);
   return {
-    gameState: {
+    gameState: normalizeCheckersGameState({
       board: nextBoard,
       currentPlayer: nextPlayer,
       selectedSquareIndex: null,
@@ -159,42 +184,46 @@ function applyCheckersMoveWithResult(
       forcedPieceSquareIndex: null,
       winner: null,
       statusMessage: `${formatPlayer(nextPlayer)} to move`,
-    },
+    }),
     moveRecord,
   };
 }
 
 function getLegalCheckersMoves(gameState: CheckersGameState): Move[] {
-  if (gameState.winner) {
+  const normalizedGameState = normalizeCheckersGameState(gameState);
+
+  if (normalizedGameState.winner) {
     return [];
   }
 
-  if (gameState.forcedPieceSquareIndex !== null) {
+  if (normalizedGameState.forcedPieceSquareIndex !== null) {
     return getLegalMovesForSquare(
-      gameState.board,
-      gameState.forcedPieceSquareIndex,
-      gameState.currentPlayer,
+      normalizedGameState.board,
+      normalizedGameState.forcedPieceSquareIndex,
+      normalizedGameState.currentPlayer,
     );
   }
 
-  return getLegalMoves(gameState.board, gameState.currentPlayer);
+  return getLegalMoves(normalizedGameState.board, normalizedGameState.currentPlayer);
 }
 
 function selectSquare(
   gameState: CheckersGameState,
   squareIndex: number,
 ): CheckersGameState {
-  if (!canMovePiece(gameState, squareIndex)) {
+  const normalizedGameState = normalizeCheckersGameState(gameState);
+
+  if (!canMovePiece(normalizedGameState, squareIndex)) {
     return gameState;
   }
 
   return {
-    ...gameState,
+    ...normalizedGameState,
     selectedSquareIndex: squareIndex,
     legalTargetIndexes: getLegalMovesForSquare(
-      gameState.board,
+      normalizedGameState.board,
       squareIndex,
-      gameState.currentPlayer,
+      normalizedGameState.currentPlayer,
     ).map((move) => move.to),
   };
 }
